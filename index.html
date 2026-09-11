@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PaperWeek — かきこみ週間予定表</title>
+<style id="pageSizeStyle">@page { size: A4 landscape; margin: 0; }</style>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="app no-print">
+
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 class="app-title">PaperWeek <span class="app-title-sub">かきこみ週間予定表</span></h1>
+    </div>
+
+    <div class="topbar-center">
+      <button id="prevWeekBtn" class="icon-btn" title="前の週" aria-label="前の週">‹</button>
+      <div class="week-range" id="weekRangeLabel">2026年9月14日 〜 9月20日</div>
+      <button id="nextWeekBtn" class="icon-btn" title="次の週" aria-label="次の週">›</button>
+      <button id="todayBtn" class="ghost-btn">今週</button>
+    </div>
+
+    <div class="topbar-right">
+      <button id="copyLastWeekBtn" class="ghost-btn">先週の予定をコピー</button>
+      <button id="printBtn" class="primary-btn">印刷する</button>
+    </div>
+  </header>
+
+  <main class="workspace">
+
+    <section class="preview-pane">
+      <div class="preview-pane-head">
+        <span class="preview-label">印刷プレビュー</span>
+        <span class="preview-hint" id="orientationHint">この状態でA4横に印刷されます</span>
+      </div>
+      <div class="preview-viewport" id="previewViewport">
+        <div class="preview-scaler" id="previewScaler">
+          <div id="printArea" class="print-area"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="control-pane">
+
+      <nav class="tabs" id="controlTabs">
+        <button class="tab-btn is-active" data-tab="settings">用紙・書式</button>
+        <button class="tab-btn" data-tab="events">予定</button>
+        <button class="tab-btn" data-tab="todos">TODO</button>
+      </nav>
+
+      <!-- 用紙・書式タブ -->
+      <div class="tab-panel is-active" data-panel="settings">
+
+        <div class="control-block">
+          <h2 class="control-title">用紙の向き</h2>
+          <div class="segmented" id="orientationSwitch">
+            <button class="segmented-btn" data-orientation="portrait">A4縦</button>
+            <button class="segmented-btn is-active" data-orientation="landscape">A4横</button>
+          </div>
+          <p class="control-note">向きに応じてレイアウトが自動的に最適化されます。</p>
+        </div>
+
+        <div class="control-block">
+          <h2 class="control-title">テンプレート</h2>
+          <div class="template-list" id="templateList">
+            <label class="template-option">
+              <input type="radio" name="template" value="01" checked>
+              <span class="template-option-body">
+                <span class="template-option-name">01 週間タイムライン</span>
+                <span class="template-option-desc">時間軸＋7日間の時間割表示</span>
+              </span>
+            </label>
+            <label class="template-option">
+              <input type="radio" name="template" value="02">
+              <span class="template-option-body">
+                <span class="template-option-name">02 週間プラン</span>
+                <span class="template-option-desc">時間軸を簡略化し、予定とTODOを重視</span>
+              </span>
+            </label>
+            <label class="template-option">
+              <input type="radio" name="template" value="03">
+              <span class="template-option-body">
+                <span class="template-option-name">03 アナログ</span>
+                <span class="template-option-desc">日付・曜日のみ表示し、手書き欄を最大化</span>
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <div class="control-block">
+          <h2 class="control-title">手書きスペースの量</h2>
+          <div class="segmented segmented-4" id="handwriteSwitch">
+            <button class="segmented-btn" data-level="less">少なめ</button>
+            <button class="segmented-btn is-active" data-level="standard">標準</button>
+            <button class="segmented-btn" data-level="more">多め</button>
+            <button class="segmented-btn" data-level="analog">アナログ重視</button>
+          </div>
+        </div>
+
+        <div class="control-block">
+          <h2 class="control-title">時間軸の範囲</h2>
+          <div class="time-range-row">
+            <label class="field-label">開始
+              <select id="timeStartSelect"></select>
+            </label>
+            <span class="time-range-sep">〜</span>
+            <label class="field-label">終了
+              <select id="timeEndSelect"></select>
+            </label>
+          </div>
+          <p class="control-note">テンプレート「01」でのみ使用されます。</p>
+        </div>
+
+      </div>
+
+      <!-- 予定タブ -->
+      <div class="tab-panel" data-panel="events">
+
+        <form class="control-block event-form" id="eventForm">
+          <h2 class="control-title" id="eventFormTitle">予定を追加</h2>
+
+          <label class="field-label">予定名
+            <input type="text" id="eventTitle" placeholder="例：数学の宿題" required>
+          </label>
+
+          <label class="field-label">曜日
+            <select id="eventDay">
+              <option value="0">月曜日</option>
+              <option value="1">火曜日</option>
+              <option value="2">水曜日</option>
+              <option value="3">木曜日</option>
+              <option value="4">金曜日</option>
+              <option value="5">土曜日</option>
+              <option value="6">日曜日</option>
+            </select>
+          </label>
+
+          <div class="time-range-row">
+            <label class="field-label">開始
+              <input type="time" id="eventStart" value="09:00">
+            </label>
+            <span class="time-range-sep">〜</span>
+            <label class="field-label">終了
+              <input type="time" id="eventEnd" value="10:00">
+            </label>
+          </div>
+
+          <label class="field-label">カテゴリ
+            <select id="eventCategory"></select>
+          </label>
+
+          <label class="field-label">メモ
+            <textarea id="eventMemo" rows="2" placeholder="任意"></textarea>
+          </label>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-btn" id="eventSubmitBtn">追加する</button>
+            <button type="button" class="ghost-btn" id="eventCancelBtn" hidden>編集をやめる</button>
+          </div>
+        </form>
+
+        <div class="control-block">
+          <h2 class="control-title">今週の予定一覧</h2>
+          <ul class="item-list" id="eventListUI"></ul>
+        </div>
+
+      </div>
+
+      <!-- TODOタブ -->
+      <div class="tab-panel" data-panel="todos">
+        <form class="control-block" id="todoForm">
+          <h2 class="control-title">TODOを追加</h2>
+          <div class="form-actions form-actions-inline">
+            <input type="text" id="todoText" placeholder="例：提出物を出す" required>
+            <button type="submit" class="primary-btn">追加</button>
+          </div>
+        </form>
+
+        <div class="control-block">
+          <h2 class="control-title">今週のTODO</h2>
+          <ul class="item-list" id="todoListUI"></ul>
+        </div>
+      </div>
+
+    </aside>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>入力した内容はこのブラウザに自動で保存されます。A4用紙に印刷して、鉛筆やペンで書き込んでご利用ください。</p>
+  </footer>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
