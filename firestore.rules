@@ -1,0 +1,21 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // users/{uid}            … その人の設定（A4縦横・テンプレート・手書き量・時間軸など）
+    // users/{uid}/weeks/{ws} … 週ごとの予定・TODO（ws = 週の月曜日, 例: "2026-09-14"）
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+
+      match /weeks/{weekId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
+    }
+
+    // 上記以外のパスはすべて拒否（デフォルト拒否）
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
