@@ -18,12 +18,12 @@
    ========================================================= */
 
 export const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyAmJz69XuTDIHV1FPyiHP5MOQt07m2Cid4",
+  authDomain: "paper-week.firebaseapp.com",
+  projectId: "paper-week",
+  storageBucket: "paper-week.firebasestorage.app",
+  messagingSenderId: "1075657636782",
+  appId: "1:1075657636782:web:99199ed0a081265d84663f"
 };
 
 // プレースホルダのままかどうかを判定するための簡易チェック。
