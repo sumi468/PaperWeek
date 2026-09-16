@@ -694,6 +694,15 @@ body.pw-cloud-enabled .topbar-auth{ display:flex; }
 .provider-tag.is-linked{
   background:var(--color-accent-soft); border-color:var(--color-accent); color:var(--color-accent);
 }
+/* hidden属性が付いている間は、display:flexを指定している他のルールより
+   必ず優先して非表示にする（hidden属性はブラウザ標準スタイルのため、
+   通常のCSSルールに上書きされてしまうことがあるための保険） */
+.modal-overlay[hidden],
+.loading-overlay[hidden],
+.auth-state[hidden]{
+  display:none !important;
+}
+
 .loading-overlay{
   position:fixed; inset:0;
   background:rgba(255,255,255,0.85);
