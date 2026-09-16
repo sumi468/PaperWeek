@@ -250,9 +250,13 @@ if (isConfigured) {
     if (user) {
       currentUser = user;
       ui.showLoggedIn(user.email, getProviderIds(user));
-      ui.showLoading(true);
 
+      // 「データを読み込んでいます…」は、移行確認モーダルの後に表示する。
+      // 先に表示してしまうと、全画面オーバーレイが移行確認モーダルの上に
+      // 重なってしまい、ユーザーがボタンを押せず永久に読み込み中のまま
+      // 止まってしまう不具合があったため。
       maybeOfferMigration(user.uid).then(function () {
+        ui.showLoading(true);
         subscribeSettings(user.uid);
         subscribeWeek(user.uid, pw.getCurrentWeekISO());
       });

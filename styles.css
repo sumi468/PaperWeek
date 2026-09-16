@@ -606,7 +606,9 @@ body.pw-cloud-enabled .topbar-auth{ display:flex; }
   background:rgba(38,38,32,0.4);
   display:flex; align-items:center; justify-content:center;
   padding:20px;
-  z-index:1000;
+  /* 読み込み中オーバーレイ(z-index:1100)より必ず手前に表示し、
+     移行確認モーダルなどが読み込み画面に隠れて操作不能にならないようにする */
+  z-index:1150;
 }
 .modal-box{
   position:relative;
