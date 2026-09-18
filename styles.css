@@ -576,6 +576,40 @@ ul{ list-style:none; margin:0; padding:0; }
 }
 .danger-btn:hover{ background:var(--color-danger); color:#fff; }
 
+.logout-btn{
+  border-color:var(--color-accent);
+  color:var(--color-accent);
+  font-weight:600;
+}
+.logout-btn:hover{ background:var(--color-accent); color:#fff; }
+.logout-status{
+  margin:8px 0 0;
+  font-size:12px;
+  color:var(--color-ink-soft);
+}
+
+.control-block-danger{
+  margin-top:22px;
+  padding:16px;
+  border-radius:var(--radius-m);
+  background:#FBECEA;
+  border:1px solid #E7C6C1;
+}
+.control-block-danger.control-block{ border-top:none; }
+
+/* ---- 保存状態インジケーター ---- */
+.save-status{
+  font-size:12px;
+  color:var(--color-ink-soft);
+  padding:4px 10px;
+  border-radius:999px;
+  background:var(--color-accent-soft);
+  transition:opacity .15s ease;
+}
+.save-status.is-saving{ color:var(--color-ink-soft); background:var(--color-accent-soft); }
+.save-status.is-saved{ color:#3E6B4A; background:#EAF3EC; }
+.save-status.is-error{ color:var(--color-danger); background:#FBECEA; }
+
 /* ---- ヘッダーのログイン領域 ---- */
 .topbar-auth{ display:none; align-items:center; gap:10px; }
 body.pw-cloud-enabled .topbar-auth{ display:flex; }
@@ -734,6 +768,127 @@ body.pw-cloud-enabled .topbar-auth{ display:flex; }
 }
 
 /* =========================================================
+   アニメーション・インタラクション
+   ---------------------------------------------------------
+   短く自然な動き（0.15〜0.3秒程度）のみを使用し、
+   常時のbox-shadow/blurの多用や、JavaScriptによる
+   アニメーション制御の追加は行わない。
+   prefers-reduced-motion / 印刷では無効化する。
+   ========================================================= */
+
+/* ボタン類：hover / active / disabled のフィードバックを統一 */
+.icon-btn, .ghost-btn, .primary-btn, .danger-btn,
+.segmented-btn, .tab-btn, .modal-tab-btn, .oauth-btn{
+  transition:
+    background-color .15s ease,
+    border-color .15s ease,
+    color .15s ease,
+    opacity .15s ease,
+    transform .12s ease,
+    box-shadow .15s ease;
+}
+.icon-btn:active, .ghost-btn:active, .primary-btn:active,
+.danger-btn:active, .oauth-btn:active{
+  transform: scale(0.97);
+}
+.icon-btn:disabled, .ghost-btn:disabled, .primary-btn:disabled,
+.danger-btn:disabled, .modal-submit:disabled, .oauth-btn:disabled{
+  opacity:.5;
+  cursor:not-allowed;
+  transform:none;
+}
+
+/* 予定・TODOカードのhover：ごく軽い浮き上がり */
+.item-row{
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.item-row:hover{
+  border-color:var(--color-line-strong);
+  box-shadow:0 2px 8px rgba(0,0,0,0.06);
+}
+.item-row.is-checked .item-title{
+  transition: color .2s ease;
+}
+
+/* テンプレート選択・セグメントの切り替え */
+.template-option{
+  transition: border-color .15s ease, background-color .15s ease;
+}
+
+/* タブ・設定パネルが切り替わる際の自然なフェード */
+.tab-panel.is-active{
+  animation: pw-fade-in .18s ease;
+}
+.control-block{
+  transition: opacity .15s ease;
+}
+
+/* 用紙プレビュー：拡大縮小や向きの切り替えを滑らかに */
+#printArea{
+  transition: transform .2s ease;
+}
+
+/* モーダル：開くときはふわっと、閉じるときはそれより短く */
+.modal-overlay:not([hidden]):not(.is-closing){
+  animation: pw-overlay-in .18s ease;
+}
+.modal-overlay:not([hidden]):not(.is-closing) .modal-box{
+  animation: pw-modal-in .2s cubic-bezier(.2,.8,.2,1);
+}
+.modal-overlay.is-closing{
+  animation: pw-overlay-out .15s ease forwards;
+}
+.modal-overlay.is-closing .modal-box{
+  animation: pw-modal-out .15s ease forwards;
+}
+
+/* トースト・同期バナー・読み込みオーバーレイの控えめな出現 */
+.toast:not([hidden]){
+  animation: pw-toast-in .2s ease;
+}
+.sync-banner:not([hidden]){
+  animation: pw-fade-in .2s ease;
+}
+.loading-overlay:not([hidden]){
+  animation: pw-fade-in .2s ease;
+}
+
+@keyframes pw-fade-in{
+  from{ opacity:0; }
+  to{ opacity:1; }
+}
+@keyframes pw-overlay-in{
+  from{ opacity:0; }
+  to{ opacity:1; }
+}
+@keyframes pw-overlay-out{
+  from{ opacity:1; }
+  to{ opacity:0; }
+}
+@keyframes pw-modal-in{
+  from{ opacity:0; transform:translateY(8px) scale(.98); }
+  to{ opacity:1; transform:translateY(0) scale(1); }
+}
+@keyframes pw-modal-out{
+  from{ opacity:1; transform:translateY(0) scale(1); }
+  to{ opacity:0; transform:translateY(4px) scale(.98); }
+}
+@keyframes pw-toast-in{
+  from{ opacity:0; transform:translate(-50%, 6px); }
+  to{ opacity:1; transform:translate(-50%, 0); }
+}
+
+/* 動きを抑えたい環境では、装飾的なアニメーションを最小限にする */
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration:0.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:0.001ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+
+/* =========================================================
    レスポンシブ
    ========================================================= */
 
@@ -765,5 +920,11 @@ body.pw-cloud-enabled .topbar-auth{ display:flex; }
     margin:0;
     box-shadow:none;
     transform:none !important;
+  }
+
+  /* 画面用のアニメーション・トランジションが印刷結果に影響しないようにする */
+  *, *::before, *::after{
+    animation:none !important;
+    transition:none !important;
   }
 }

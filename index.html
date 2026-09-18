@@ -25,6 +25,7 @@
 
     <div class="topbar-right">
       <button id="copyLastWeekBtn" class="ghost-btn">先週の予定をコピー</button>
+      <span class="save-status no-print" id="saveStatus" hidden></span>
       <button id="printBtn" class="primary-btn">印刷する</button>
 
       <div class="topbar-auth" id="topbarAuth">
@@ -306,6 +307,13 @@
     </div>
 
     <div class="control-block">
+      <h3 class="control-title">ログアウト</h3>
+      <p class="control-note">この端末からログアウトします。予定・TODO・設定はクラウドに保存されたままなので、削除されません。</p>
+      <button type="button" class="ghost-btn logout-btn" id="accountLogoutBtn">ログアウト</button>
+      <p class="logout-status" id="accountLogoutStatus" hidden>ログアウト中…</p>
+    </div>
+
+    <div class="control-block control-block-danger">
       <h3 class="control-title">アカウントを削除</h3>
       <p class="control-note">アカウントとクラウド上の予定・TODO・設定がすべて削除されます。この操作は取り消せません。</p>
       <button type="button" class="danger-btn" id="deleteAccountBtn">アカウントを削除する</button>

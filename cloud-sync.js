@@ -50,6 +50,7 @@ var ui = window.PaperWeekAuthUI || {
   showLoggedOut: function () {},
   showLoading: function () {},
   showToast: function (m) { console.log(m); },
+  showSaveStatus: function () {},
   showSyncBanner: function (m) { console.warn(m); },
   hideSyncBanner: function () {},
   askMigration: function () { return Promise.resolve("no"); },
@@ -109,8 +110,12 @@ function debouncedSaveSettings(settingsSnapshot) {
     var payload = pickSyncableSettings(settingsSnapshot);
     payload.updatedAt = serverTimestamp();
     payload.email = currentUser.email;
-    setDoc(userDocRef(uid), payload, { merge: true }).catch(function (err) {
+    ui.showSaveStatus("saving");
+    setDoc(userDocRef(uid), payload, { merge: true }).then(function () {
+      ui.showSaveStatus("saved");
+    }).catch(function (err) {
       console.error("PaperWeek: 設定の保存に失敗", err);
+      ui.showSaveStatus("error");
       ui.showToast("保存できませんでした。通信状態を確認してください。");
     });
   }, 600);
@@ -122,12 +127,16 @@ function debouncedSaveWeek(iso, weekPayload) {
   clearTimeout(weekSaveTimers[iso]);
   weekSaveTimers[iso] = setTimeout(function () {
     var uid = currentUser.uid;
+    ui.showSaveStatus("saving");
     setDoc(weekDocRef(uid, iso), {
       events: weekPayload.events,
       todos: weekPayload.todos,
       updatedAt: serverTimestamp()
-    }, { merge: true }).catch(function (err) {
+    }, { merge: true }).then(function () {
+      ui.showSaveStatus("saved");
+    }).catch(function (err) {
       console.error("PaperWeek: 予定の保存に失敗", err);
+      ui.showSaveStatus("error");
       ui.showToast("保存できませんでした。通信状態を確認してください。");
     });
   }, 600);

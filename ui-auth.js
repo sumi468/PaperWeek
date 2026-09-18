@@ -40,14 +40,47 @@
     accountEmailLabel: document.getElementById("accountEmailLabel"),
     linkedProvidersList: document.getElementById("linkedProvidersList"),
     linkProviderActions: document.getElementById("linkProviderActions"),
+    accountLogoutBtn: document.getElementById("accountLogoutBtn"),
+    accountLogoutStatus: document.getElementById("accountLogoutStatus"),
     deleteAccountBtn: document.getElementById("deleteAccountBtn"),
 
     loadingOverlay: document.getElementById("loadingOverlay"),
     toast: document.getElementById("toast"),
-    syncBanner: document.getElementById("syncBanner")
+    syncBanner: document.getElementById("syncBanner"),
+    saveStatus: document.getElementById("saveStatus")
   };
 
   if (!el.topbarAuth) return; // 必要な要素が無ければ何もしない（安全側に倒す）
+
+  /* ---------------------------------------------------------
+     モーダルの開閉（アニメーション対応）
+     --------------------------------------------------------- */
+
+  function prefersReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  var MODAL_CLOSE_ANIM_MS = 150;
+
+  function openModal(overlay) {
+    overlay.hidden = false;
+  }
+
+  // 「閉じる」演出の間だけ is-closing クラスでフェードアウトさせ、
+  // 演出の有無にかかわらず必ず最終的にhidden=trueになるようにする
+  // （アニメーションが再生されない環境でも操作不能にならないための保険）。
+  function closeModal(overlay) {
+    if (overlay.hidden) return;
+    if (prefersReducedMotion()) {
+      overlay.hidden = true;
+      return;
+    }
+    overlay.classList.add("is-closing");
+    setTimeout(function () {
+      overlay.hidden = true;
+      overlay.classList.remove("is-closing");
+    }, MODAL_CLOSE_ANIM_MS);
+  }
 
   /* ---------------------------------------------------------
      モーダルの開閉・タブ切り替え
@@ -62,7 +95,7 @@
 
   function openAuthModal(defaultTab) {
     clearAuthMessages();
-    el.authModalOverlay.hidden = false;
+    openModal(el.authModalOverlay);
     if (defaultTab) setAuthTab(defaultTab);
 
     var cloudReady = !!(window.PaperWeekCloud && window.PaperWeekCloud.isConfigured());
@@ -73,7 +106,7 @@
   }
 
   function closeAuthModal() {
-    el.authModalOverlay.hidden = true;
+    closeModal(el.authModalOverlay);
   }
 
   function setAuthTab(tab) {
@@ -284,22 +317,42 @@
     });
   });
 
-  el.logoutBtn.addEventListener("click", function () {
-    if (window.PaperWeekCloud) window.PaperWeekCloud.signOutUser();
-  });
+  var isLoggingOut = false;
+
+  function performLogout() {
+    if (!window.PaperWeekCloud || isLoggingOut) return;
+    isLoggingOut = true;
+    el.logoutBtn.disabled = true;
+    if (el.accountLogoutBtn) el.accountLogoutBtn.disabled = true;
+    if (el.accountLogoutStatus) el.accountLogoutStatus.hidden = false;
+
+    window.PaperWeekCloud.signOutUser().then(function () {
+      closeModal(el.accountModalOverlay);
+    }).catch(function () {
+      showToast("ログアウトに失敗しました。通信状態を確認してください。");
+    }).finally(function () {
+      isLoggingOut = false;
+      el.logoutBtn.disabled = false;
+      if (el.accountLogoutBtn) el.accountLogoutBtn.disabled = false;
+      if (el.accountLogoutStatus) el.accountLogoutStatus.hidden = true;
+    });
+  }
+
+  el.logoutBtn.addEventListener("click", performLogout);
+  if (el.accountLogoutBtn) el.accountLogoutBtn.addEventListener("click", performLogout);
 
   /* ---------------------------------------------------------
      アカウントモーダル
      --------------------------------------------------------- */
 
   el.openAccountBtn.addEventListener("click", function () {
-    el.accountModalOverlay.hidden = false;
+    openModal(el.accountModalOverlay);
   });
   el.accountModalClose.addEventListener("click", function () {
-    el.accountModalOverlay.hidden = true;
+    closeModal(el.accountModalOverlay);
   });
   el.accountModalOverlay.addEventListener("click", function (e) {
-    if (e.target === el.accountModalOverlay) el.accountModalOverlay.hidden = true;
+    if (e.target === el.accountModalOverlay) closeModal(el.accountModalOverlay);
   });
 
   el.deleteAccountBtn.addEventListener("click", function () {
@@ -311,14 +364,14 @@
 
     el.deleteAccountBtn.disabled = true;
     window.PaperWeekCloud.deleteAccount().then(function () {
-      el.accountModalOverlay.hidden = true;
+      closeModal(el.accountModalOverlay);
       showToast("アカウントを削除しました。");
     }).catch(function (err) {
       if (err && err.code === "auth/requires-recent-login") {
         var pw = window.prompt("セキュリティのため、確認用にパスワードを再入力してください。");
         if (pw) {
           window.PaperWeekCloud.reauthenticateAndDeleteAccount(pw).then(function () {
-            el.accountModalOverlay.hidden = true;
+            closeModal(el.accountModalOverlay);
             showToast("アカウントを削除しました。");
           }).catch(function (err2) {
             showToast(translateAuthErrorCode(err2 && err2.code));
@@ -338,10 +391,10 @@
 
   function askMigration() {
     return new Promise(function (resolve) {
-      el.migrationModalOverlay.hidden = false;
+      openModal(el.migrationModalOverlay);
 
       function cleanup(result) {
-        el.migrationModalOverlay.hidden = true;
+        closeModal(el.migrationModalOverlay);
         el.migrateYesBtn.removeEventListener("click", onYes);
         el.migrateNoBtn.removeEventListener("click", onNo);
         el.migrateCancelBtn.removeEventListener("click", onCancel);
@@ -385,6 +438,29 @@
     el.body.classList.add("pw-cloud-enabled");
   }
 
+  var saveStatusTimer = null;
+  function showSaveStatus(state) {
+    if (!el.saveStatus) return;
+    clearTimeout(saveStatusTimer);
+    if (state === "saving") {
+      el.saveStatus.textContent = "保存中…";
+      el.saveStatus.className = "save-status no-print is-saving";
+      el.saveStatus.hidden = false;
+    } else if (state === "saved") {
+      el.saveStatus.textContent = "保存済み";
+      el.saveStatus.className = "save-status no-print is-saved";
+      el.saveStatus.hidden = false;
+      saveStatusTimer = setTimeout(function () { el.saveStatus.hidden = true; }, 2000);
+    } else if (state === "error") {
+      el.saveStatus.textContent = "保存失敗";
+      el.saveStatus.className = "save-status no-print is-error";
+      el.saveStatus.hidden = false;
+      saveStatusTimer = setTimeout(function () { el.saveStatus.hidden = true; }, 4000);
+    } else {
+      el.saveStatus.hidden = true;
+    }
+  }
+
   /* ---------------------------------------------------------
      cloud-sync.js から呼び出される公開API
      --------------------------------------------------------- */
@@ -397,6 +473,7 @@
     showToast: showToast,
     showSyncBanner: showSyncBanner,
     hideSyncBanner: hideSyncBanner,
+    showSaveStatus: showSaveStatus,
     askMigration: askMigration,
     closeAuthModal: closeAuthModal
   };
