@@ -522,6 +522,11 @@
     el.printArea.dataset.days = visibleDates().length;
     el.printArea.style.setProperty("--day-count", visibleDates().length);
     el.printArea.style.setProperty("--card-columns", settings.orientation === "landscape" ? visibleDates().length : Math.min(2, visibleDates().length));
+    // Short slots may not fit stacked time/title labels. Use the available
+    // column width before falling back to a continuation sheet.
+    el.printArea.querySelectorAll(".pa-event").forEach(function (event) {
+      if (event.scrollHeight > event.clientHeight + 1) event.classList.add("is-compact");
+    });
     appendOverflowDetails(startHour, endHour, tpl);
   }
 
