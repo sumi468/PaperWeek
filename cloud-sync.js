@@ -90,6 +90,7 @@ function providerLabelJa(id) {
 var currentUser = null;
 var unsubSettings = null;
 var unsubWeek = null;
+var weekSubscriptions = new Map();
 var settingsLoadedOnce = false;
 var weekLoadedOnce = false;
 
@@ -169,27 +170,42 @@ function subscribeSettings(uid) {
   });
 }
 
-function subscribeWeek(uid, iso) {
-  if (unsubWeek) unsubWeek();
-  weekLoadedOnce = false;
-  var firstCallback = true;
-
-  unsubWeek = onSnapshot(weekDocRef(uid, iso), function (snap) {
-    if (snap.exists()) {
-      pw.applyRemoteWeek(iso, snap.data());
-    }
-    if (firstCallback) {
-      firstCallback = false;
-      weekLoadedOnce = true;
-      maybeHideLoading();
-    }
-    ui.hideSyncBanner();
-  }, function (err) {
-    console.error("PaperWeek: 予定の同期エラー", err);
-    ui.showSyncBanner("予定の同期でエラーが発生しました。通信状態を確認してください。");
-    weekLoadedOnce = true;
-    maybeHideLoading();
+function subscribeWeeks(uid) {
+  var selected = pw.getVisibleWeekISOs();
+  weekSubscriptions.forEach(function (entry, iso) {
+    if (selected.indexOf(iso) < 0) { entry.unsubscribe(); weekSubscriptions.delete(iso); }
   });
+  function updateLoaded() {
+    weekLoadedOnce = pw.getVisibleWeekISOs().every(function (iso) {
+      var entry = weekSubscriptions.get(iso);
+      return entry && entry.loaded;
+    });
+    maybeHideLoading();
+  }
+  weekLoadedOnce = false;
+  selected.forEach(function (iso) {
+    if (weekSubscriptions.has(iso)) return;
+    var entry = { loaded: false, unsubscribe: function () {} };
+    weekSubscriptions.set(iso, entry);
+    entry.unsubscribe = onSnapshot(weekDocRef(uid, iso), function (snap) {
+      if (weekSubscriptions.get(iso) !== entry) return;
+      if (snap.exists()) pw.applyRemoteWeek(iso, snap.data());
+      entry.loaded = true;
+      updateLoaded();
+      ui.hideSyncBanner();
+    }, function (err) {
+      if (weekSubscriptions.get(iso) !== entry) return;
+      console.error("PaperWeek: 予定の同期エラー", err);
+      ui.showSyncBanner("予定の同期でエラーが発生しました。通信状態を確認してください。");
+      entry.loaded = true;
+      updateLoaded();
+    });
+  });
+  unsubWeek = function () {
+    weekSubscriptions.forEach(function (entry) { entry.unsubscribe(); });
+    weekSubscriptions.clear();
+  };
+  updateLoaded();
 }
 
 /* ---------------------------------------------------------
@@ -267,7 +283,7 @@ if (isConfigured) {
       maybeOfferMigration(user.uid).then(function () {
         ui.showLoading(true);
         subscribeSettings(user.uid);
-        subscribeWeek(user.uid, pw.getCurrentWeekISO());
+        subscribeWeeks(user.uid);
       });
     } else {
       currentUser = null;
@@ -287,8 +303,8 @@ if (isConfigured) {
       debouncedSaveSettings(payload);
     } else if (type === "week") {
       debouncedSaveWeek(payload.iso, payload.data);
-    } else if (type === "weekSwitched") {
-      subscribeWeek(currentUser.uid, payload);
+    } else if (type === "weekSwitched" || type === "visibleWeeksChanged") {
+      subscribeWeeks(currentUser.uid);
     }
   });
 }

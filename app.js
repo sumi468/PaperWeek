@@ -12,6 +12,8 @@
 
   var SETTINGS_KEY = "wp_settings_v1";
   var WEEK_KEY_PREFIX = "wp_week_v1_";
+  var VIEW_KEY = "wp_view_v1";
+  var dates = window.PaperWeekDates;
 
   var DOW_LABELS = ["月", "火", "水", "木", "金", "土", "日"];
 
@@ -130,11 +132,13 @@
     return { events: [], todos: [] };
   }
 
-  function saveWeekData() {
+  function saveWeekData(iso, data) {
+    iso = iso || settings.currentWeekStart;
+    data = data || weekData;
     try {
-      localStorage.setItem(weekKey(settings.currentWeekStart), JSON.stringify(weekData));
+      localStorage.setItem(weekKey(iso), JSON.stringify(data));
     } catch (e) { console.warn("予定データの保存に失敗しました", e); }
-    notifyCloud("week", { iso: settings.currentWeekStart, data: JSON.parse(JSON.stringify(weekData)) });
+    notifyCloud("week", { iso: iso, data: JSON.parse(JSON.stringify(data)) });
   }
 
   // ---- クラウド同期（Firebase）との連携用フック -------------------
@@ -153,6 +157,42 @@
   var settings = loadSettings();
   var weekData = loadWeekData(settings.currentWeekStart);
   var editingEventId = null;
+  var editingEventWeek = null;
+  var storedView;
+  try { storedView = JSON.parse(localStorage.getItem(VIEW_KEY)); } catch (e) {}
+  var view = dates.normalize(storedView, settings.currentWeekStart);
+  function visibleDates() { return dates.visible(view); }
+  function visibleWeeks() { return Array.from(new Set(visibleDates().map(dates.week))); }
+  function dataForWeek(iso) { return iso === settings.currentWeekStart ? weekData : loadWeekData(iso); }
+  function selectedEvents() {
+    return visibleDates().flatMap(function (iso) {
+      var week = dates.week(iso);
+      return dataForWeek(week).events.filter(function (ev) { return ev.day === dates.day(iso); })
+        .map(function (ev) { return Object.assign({}, ev, { date: iso, week: week }); });
+    });
+  }
+  function dateLabel(iso) {
+    var d = dates.parse(iso);
+    return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate() + "（" + DOW_LABELS[dates.day(iso)] + "）";
+  }
+  function selectionLabel() {
+    var selected = visibleDates();
+    if (view.mode === "custom") return selected.map(dateLabel).join("・");
+    return dateLabel(selected[0]) + (selected.length > 1 ? " 〜 " + dateLabel(selected[selected.length - 1]) : "");
+  }
+  function changeView() {
+    view = dates.normalize(view, settings.currentWeekStart);
+    var weeks = visibleWeeks();
+    if (weeks.indexOf(settings.currentWeekStart) < 0) {
+      settings.currentWeekStart = weeks[0];
+      weekData = loadWeekData(weeks[0]);
+      saveSettings();
+    }
+    resetEventForm();
+    try { localStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (e) {}
+    renderAll();
+    notifyCloud("visibleWeeksChanged", weeks);
+  }
 
   /* ---------------------------------------------------------
      DOM 参照
@@ -194,6 +234,9 @@
     todoText: document.getElementById("todoText"),
     todoListUI: document.getElementById("todoListUI")
   };
+  ["dateModeSwitch", "viewStart", "viewCount", "rangeControls", "customControls", "customDate", "addDateBtn", "selectedDates", "dateStatus", "todoWeek"].forEach(function (id) {
+    el[id] = document.getElementById(id);
+  });
 
   /* ---------------------------------------------------------
      初期化：セレクトボックスなど
@@ -228,20 +271,23 @@
      --------------------------------------------------------- */
 
   function dayMeta(monday, index) {
-    var date = addDays(monday, index);
+    var iso = visibleDates()[index];
+    var date = dates.parse(iso);
+    var weekday = dates.day(iso);
     return {
       index: index,
       date: date,
-      dow: DOW_LABELS[index],
-      isSat: index === 5,
-      isSun: index === 6,
+      dow: DOW_LABELS[weekday],
+      isSat: weekday === 5,
+      isSun: weekday === 6,
       label: (date.getMonth() + 1) + "/" + date.getDate()
     };
   }
 
   function eventsForDay(index) {
-    return weekData.events
-      .filter(function (e) { return e.day === index; })
+    var iso = visibleDates()[index];
+    return dataForWeek(dates.week(iso)).events
+      .filter(function (e) { return e.day === dates.day(iso); })
       .sort(function (a, b) { return timeToMinutes(a.start) - timeToMinutes(b.start); });
   }
 
@@ -249,7 +295,7 @@
     return (
       '<div class="pa-titlebar">' +
         '<span class="pa-titlebar-name">PaperWeek <span class="pa-titlebar-name-sub">週間予定表</span></span>' +
-        '<span class="pa-titlebar-range">' + formatWeekRangeLabel(monday) + "</span>" +
+        '<span class="pa-titlebar-range">' + selectionLabel() + "</span>" +
       "</div>"
     );
   }
@@ -290,12 +336,12 @@
     var total = (endHour - startHour) * 60;
     var startMin = Math.max(timeToMinutes(ev.start) - startHour * 60, 0);
     var endMin = Math.min(timeToMinutes(ev.end) - startHour * 60, total);
-    if (endMin <= startMin) endMin = startMin + Math.max(total * 0.02, 1);
+    if (endMin <= startMin) return "";
     var top = (startMin / total) * 100;
-    var height = Math.max(((endMin - startMin) / total) * 100, 2.6);
+    var height = ((endMin - startMin) / total) * 100;
     var cat = categoryOf(ev.category);
     return (
-      '<div class="pa-event" style="top:' + top + "%;height:" + height + "%;border-left-color:" + cat.hex + '">' +
+      '<div class="pa-event" style="top:' + top + "%;height:" + height + "%;left:calc(" + (ev.lane / ev.lanes * 100) + "% + 0.6mm);width:calc(" + (100 / ev.lanes) + "% - 1.2mm);border-left-color:" + cat.hex + '">' +
         '<span class="pa-event-time">' + ev.start + "〜" + ev.end + "</span>" +
         '<span class="pa-event-title">' +
           '<span class="pa-event-badge" style="background:' + cat.hex + '">' + cat.badge + "</span>" +
@@ -313,7 +359,16 @@
       var meta = dayMeta(monday, idx);
       labelsHtml += buildDayLabel(meta, false);
 
-      var eventsHtml = eventsForDay(idx).map(function (ev) {
+      var dayEvents = eventsForDay(idx);
+      var laneEnds = [];
+      var positioned = dayEvents.map(function (ev) {
+        var lane = laneEnds.findIndex(function (end) { return end <= timeToMinutes(ev.start); });
+        if (lane < 0) lane = laneEnds.length;
+        laneEnds[lane] = timeToMinutes(ev.end);
+        return Object.assign({}, ev, { lane: lane });
+      });
+      var eventsHtml = positioned.map(function (ev) {
+        ev.lanes = laneEnds.length;
         return buildEventBlock(ev, startHour, endHour);
       }).join("");
 
@@ -342,12 +397,14 @@
 
   function buildTemplate01(monday, orientation, startHour, endHour) {
     var body = "";
-    if (orientation === "landscape") {
-      body = buildTimelineBlock(monday, [0, 1, 2, 3, 4, 5, 6], false, startHour, endHour);
+    var indices = visibleDates().map(function (_, i) { return i; });
+    if (orientation === "landscape" || indices.length <= 4) {
+      body = buildTimelineBlock(monday, indices, false, startHour, endHour);
     } else {
+      var split = Math.ceil(indices.length / 2);
       body =
-        buildTimelineBlock(monday, [0, 1, 2, 3], false, startHour, endHour) +
-        buildTimelineBlock(monday, [4, 5, 6], true, startHour, endHour);
+        buildTimelineBlock(monday, indices.slice(0, split), false, startHour, endHour) +
+        buildTimelineBlock(monday, indices.slice(split), false, startHour, endHour);
     }
     return '<div class="pa-grid-wrap"><div class="pa-timeline">' + body + "</div></div>";
   }
@@ -390,8 +447,9 @@
   function buildListTemplate(monday, orientation, isAnalog) {
     var gridCls = "pa-daygrid " + (orientation === "landscape" ? "is-landscape" : "is-portrait");
     var cards = "";
-    for (var i = 0; i < 7; i++) cards += buildDayCard(monday, i, isAnalog);
-    if (orientation === "portrait") {
+    var count = visibleDates().length;
+    for (var i = 0; i < count; i++) cards += buildDayCard(monday, i, isAnalog);
+    if (orientation === "portrait" && count === 7) {
       cards += (
         '<div class="pa-daycard is-memocard">' +
           '<div class="pa-daycard-head"><span class="dow">MEMO</span></div>' +
@@ -403,13 +461,16 @@
   }
 
   function buildBottomPanels() {
-    var todoHtml = weekData.todos.map(function (t) {
-      return (
-        '<div class="pa-todo-item">' +
-          '<span class="pa-todo-box">' + (t.checked ? "✓" : "") + "</span>" +
-          '<span>' + escapeHtml(t.text) + "</span>" +
-        "</div>"
-      );
+    var weeks = visibleWeeks();
+    var todoHtml = weeks.map(function (iso) {
+      return dataForWeek(iso).todos.map(function (t) {
+        return (
+          '<div class="pa-todo-item">' +
+            '<span class="pa-todo-box">' + (t.checked ? "✓" : "") + "</span>" +
+            '<span>' + (weeks.length > 1 ? '<small>' + iso + 'の週： </small>' : '') + escapeHtml(t.text) + "</span>" +
+          "</div>"
+        );
+      }).join("");
     }).join("");
 
     todoHtml += [0, 1, 2].map(function () {
@@ -419,7 +480,7 @@
     return (
       '<div class="pa-bottom">' +
         '<div class="pa-panel">' +
-          '<div class="pa-panel-head">TODO ／ 今週やること</div>' +
+          '<div class="pa-panel-head">TODO ／ 選択日を含む週</div>' +
           '<div class="pa-panel-body">' + todoHtml + "</div>" +
         "</div>" +
         '<div class="pa-panel" style="flex:1.3">' +
@@ -454,10 +515,77 @@
       gridHtml = buildListTemplate(monday, settings.orientation, tpl === "03");
     }
 
-    el.printArea.innerHTML = buildTitlebar(monday) + '<div class="pa-body">' + gridHtml + buildBottomPanels() + "</div>";
+    el.printArea.innerHTML = '<section class="pa-sheet">' + buildTitlebar(monday) + '<div class="pa-body">' + gridHtml + buildBottomPanels() + "</div></section>";
 
     el.printArea.className =
       "print-area orientation-" + settings.orientation + " tpl-" + tpl + " hw-" + settings.handwrite;
+    el.printArea.dataset.days = visibleDates().length;
+    el.printArea.style.setProperty("--day-count", visibleDates().length);
+    el.printArea.style.setProperty("--card-columns", settings.orientation === "landscape" ? visibleDates().length : Math.min(2, visibleDates().length));
+    appendOverflowDetails(startHour, endHour, tpl);
+  }
+
+  // Keep handwriting space on the planner. Content that cannot be read there is
+  // repeated in full on measured A4 continuation sheets, in preview and print.
+  function appendOverflowDetails(startHour, endHour, tpl) {
+    var main = el.printArea.firstElementChild;
+    var events = selectedEvents();
+    var eventOverflow = Array.from(main.querySelectorAll(".pa-event, .pa-daycard")).some(function (node) {
+      return node.scrollHeight > node.clientHeight + 1 || node.scrollWidth > node.clientWidth + 1;
+    });
+    if (tpl === "01") eventOverflow = eventOverflow || events.some(function (ev) {
+      return timeToMinutes(ev.start) < startHour * 60 || timeToMinutes(ev.end) > endHour * 60;
+    });
+    var todoPanel = main.querySelector(".pa-panel-body");
+    var todoOverflow = Array.from(todoPanel.querySelectorAll(".pa-todo-item")).some(function (row) {
+      return row.textContent.trim() && (row.offsetTop + row.offsetHeight > todoPanel.offsetTop + todoPanel.clientHeight || row.scrollWidth > row.clientWidth + 1);
+    });
+    if (!eventOverflow && !todoOverflow) return;
+    var note = document.createElement("div");
+    note.className = "pa-overflow-note";
+    note.textContent = "枠内に収まらない内容は、続きのページに全文を掲載しています。";
+    main.appendChild(note);
+    var body;
+    function newSheet() {
+      var sheet = document.createElement("section");
+      sheet.className = "pa-sheet pa-details";
+      sheet.innerHTML = buildTitlebar() + '<h2 class="pa-details-title">予定・TODOの詳細（続き）</h2><div class="pa-details-body"></div>';
+      el.printArea.appendChild(sheet);
+      body = sheet.querySelector(".pa-details-body");
+    }
+    function appendText(text) {
+      var remaining = Array.from(text);
+      while (remaining.length) {
+        var row = document.createElement("p");
+        row.textContent = remaining.join("");
+        body.appendChild(row);
+        if (body.scrollHeight <= body.clientHeight + 1) return;
+        row.remove();
+        if (body.childElementCount) newSheet();
+        body.appendChild(row);
+        var low = 0, high = remaining.length;
+        while (low < high) {
+          var middle = Math.ceil((low + high) / 2);
+          row.textContent = remaining.slice(0, middle).join("");
+          if (body.scrollHeight <= body.clientHeight + 1) low = middle;
+          else high = middle - 1;
+        }
+        // A full A4 body always fits at least one character at this fixed font size.
+        var count = Math.max(low, 1);
+        row.textContent = remaining.slice(0, count).join("");
+        remaining = remaining.slice(count);
+        if (remaining.length) newSheet();
+      }
+    }
+    newSheet();
+    if (eventOverflow) events.forEach(function (ev) {
+      appendText(dateLabel(ev.date) + " " + ev.start + "〜" + ev.end + "　" + ev.title + (ev.memo ? "\nメモ：" + ev.memo : ""));
+    });
+    if (todoOverflow) visibleWeeks().forEach(function (iso) {
+      dataForWeek(iso).todos.forEach(function (todo) {
+        appendText("TODO（" + iso + "の週） " + (todo.checked ? "✓ " : "□ ") + todo.text);
+      });
+    });
   }
 
   function updatePageSizeStyle() {
@@ -466,6 +594,7 @@
   }
 
   function scalePreview() {
+    if (window.matchMedia("print").matches) return;
     var naturalW = el.printArea.offsetWidth;
     var naturalH = el.printArea.offsetHeight;
     if (!naturalW || !naturalH) return;
@@ -483,14 +612,17 @@
 
   function renderTopbar() {
     var monday = fromISODate(settings.currentWeekStart);
-    el.weekRangeLabel.textContent = formatWeekRangeLabel(monday);
+    el.weekRangeLabel.textContent = selectionLabel();
+    el.prevWeekBtn.title = el.prevWeekBtn.ariaLabel = view.mode === "range" ? "前の期間" : "選択日を1週間前へ";
+    el.nextWeekBtn.title = el.nextWeekBtn.ariaLabel = view.mode === "range" ? "次の期間" : "選択日を1週間後へ";
+    el.copyLastWeekBtn.title = settings.currentWeekStart + "の週へ先週の予定・TODOをコピー";
     el.orientationHint.textContent =
       settings.orientation === "portrait" ? "この状態でA4縦に印刷されます" : "この状態でA4横に印刷されます";
   }
 
   function renderEventList() {
-    var events = weekData.events.slice().sort(function (a, b) {
-      if (a.day !== b.day) return a.day - b.day;
+    var events = selectedEvents().sort(function (a, b) {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
       return timeToMinutes(a.start) - timeToMinutes(b.start);
     });
 
@@ -502,11 +634,11 @@
     el.eventListUI.innerHTML = events.map(function (ev) {
       var cat = categoryOf(ev.category);
       return (
-        '<li class="item-row" data-id="' + ev.id + '">' +
+        '<li class="item-row" data-week="' + ev.week + '" data-date="' + ev.date + '" data-id="' + escapeHtml(ev.id) + '">' +
           '<span class="item-badge" style="background:' + cat.hex + '">' + cat.badge + "</span>" +
           '<span class="item-main">' +
             '<span class="item-title">' + escapeHtml(ev.title) + "</span><br>" +
-            '<span class="item-sub">' + DOW_LABELS[ev.day] + "曜 " + ev.start + "〜" + ev.end + "</span>" +
+            '<span class="item-sub">' + dateLabel(ev.date) + " " + ev.start + "〜" + ev.end + "</span>" +
           "</span>" +
           '<span class="item-actions">' +
             '<button type="button" class="js-edit-event" title="編集">✎</button>' +
@@ -534,6 +666,26 @@
   }
 
   function syncControlInputs() {
+    var selected = visibleDates();
+    el.viewStart.value = view.start;
+    el.viewCount.value = view.count;
+    el.rangeControls.hidden = view.mode !== "range";
+    el.customControls.hidden = view.mode !== "custom";
+    if (!el.customDate.value) el.customDate.value = selected[0];
+    el.dateModeSwitch.querySelectorAll("button").forEach(function (btn) {
+      var active = btn.dataset.mode === view.mode;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", active);
+    });
+    el.selectedDates.innerHTML = selected.map(function (iso) {
+      return view.mode === "custom" ? '<button type="button" class="date-chip ghost-btn" data-date="' + iso + '" aria-label="' + dateLabel(iso) + 'を選択から外す" ' + (selected.length === 1 ? 'disabled' : '') + '>' + dateLabel(iso) + ' ×</button>' : '<span class="date-chip">' + dateLabel(iso) + '</span>';
+    }).join("");
+    el.dateStatus.textContent = selected.length + "日分を表示・印刷します。";
+    var eventDate = el.eventDay.value;
+    el.eventDay.innerHTML = selected.map(function (iso) { return '<option value="' + iso + '">' + dateLabel(iso) + '</option>'; }).join("");
+    if (selected.indexOf(eventDate) >= 0) el.eventDay.value = eventDate;
+    el.todoWeek.innerHTML = visibleWeeks().map(function (iso) { return '<option value="' + iso + '">' + formatWeekRangeLabel(fromISODate(iso)) + '</option>'; }).join("");
+    el.todoWeek.value = settings.currentWeekStart;
     Array.prototype.forEach.call(el.orientationSwitch.querySelectorAll(".segmented-btn"), function (btn) {
       btn.classList.toggle("is-active", btn.dataset.orientation === settings.orientation);
     });
@@ -567,23 +719,62 @@
     editingEventId = null;
     resetEventForm();
     saveSettings();
-    notifyCloud("weekSwitched", newMondayISO);
+    notifyCloud("visibleWeeksChanged", visibleWeeks());
     renderAll();
   }
 
   el.prevWeekBtn.addEventListener("click", function () {
-    var monday = fromISODate(settings.currentWeekStart);
-    switchWeek(toISODate(addDays(monday, -7)));
+    moveView(-1);
   });
 
   el.nextWeekBtn.addEventListener("click", function () {
-    var monday = fromISODate(settings.currentWeekStart);
-    switchWeek(toISODate(addDays(monday, 7)));
+    moveView(1);
   });
 
   el.todayBtn.addEventListener("click", function () {
-    switchWeek(toISODate(getMonday(new Date())));
+    view.mode = "range";
+    view.start = toISODate(getMonday(new Date()));
+    view.count = 7;
+    changeView();
   });
+
+  function moveView(direction) {
+    var amount = direction * (view.mode === "range" ? view.count : 7);
+    var moved = visibleDates().map(function (iso) { return dates.add(iso, amount); });
+    if (!moved.every(dates.parse)) return;
+    if (view.mode === "range") view.start = moved[0];
+    else view.dates = moved;
+    changeView();
+  }
+  el.dateModeSwitch.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-mode]");
+    if (!button || button.dataset.mode === view.mode) return;
+    if (button.dataset.mode === "custom") view.dates = visibleDates();
+    else { view.start = view.dates[0]; view.count = view.dates.length; }
+    view.mode = button.dataset.mode;
+    changeView();
+  });
+  el.viewStart.addEventListener("change", function () {
+    if (!el.viewStart.validity.valid || !dates.parse(el.viewStart.value)) { el.viewStart.value = view.start; return; }
+    view.start = el.viewStart.value;
+    changeView();
+  });
+  el.viewCount.addEventListener("change", function () { view.count = Number(el.viewCount.value); changeView(); });
+  el.addDateBtn.addEventListener("click", function () {
+    var iso = el.customDate.value;
+    if (!dates.parse(iso)) { el.dateStatus.textContent = "有効な日付を選んでください。"; return; }
+    if (view.dates.indexOf(iso) >= 0) { el.dateStatus.textContent = "この日付は選択済みです。"; return; }
+    if (view.dates.length >= 7) { el.dateStatus.textContent = "最大7日です。選択中の日付を外してから追加してください。"; return; }
+    view.dates.push(iso);
+    changeView();
+  });
+  el.selectedDates.addEventListener("click", function (event) {
+    var button = event.target.closest("[data-date]");
+    if (!button || view.dates.length <= 1) return;
+    view.dates = view.dates.filter(function (iso) { return iso !== button.dataset.date; });
+    changeView();
+  });
+  el.todoWeek.addEventListener("change", function () { switchWeek(el.todoWeek.value); });
 
   el.copyLastWeekBtn.addEventListener("click", function () {
     var monday = fromISODate(settings.currentWeekStart);
@@ -672,6 +863,8 @@
 
   function resetEventForm() {
     editingEventId = null;
+    editingEventWeek = null;
+    el.eventDay.disabled = false;
     el.eventForm.reset();
     el.eventStart.value = "09:00";
     el.eventEnd.value = "10:00";
@@ -692,22 +885,34 @@
     }
     var payload = {
       title: title,
-      day: parseInt(el.eventDay.value, 10),
+      day: dates.day(el.eventDay.value),
       start: start,
       end: end,
       category: el.eventCategory.value,
       memo: el.eventMemo.value.trim()
     };
 
+    var targetWeek = dates.week(el.eventDay.value);
+    var targetData = dataForWeek(targetWeek);
     if (editingEventId) {
-      var idx = weekData.events.findIndex(function (ev) { return ev.id === editingEventId; });
-      if (idx !== -1) weekData.events[idx] = Object.assign({ id: editingEventId }, payload);
+      var sourceData = dataForWeek(editingEventWeek);
+      var idx = sourceData.events.findIndex(function (ev) { return ev.id === editingEventId; });
+      if (idx !== -1) {
+        var updated = Object.assign({}, sourceData.events[idx], payload);
+        if (targetWeek === editingEventWeek) targetData.events[idx] = updated;
+        else {
+          sourceData.events.splice(idx, 1);
+          saveWeekData(editingEventWeek, sourceData);
+          if (targetData.events.some(function (ev) { return ev.id === updated.id; })) updated.id = uid();
+          targetData.events.push(updated);
+        }
+      }
     } else {
       payload.id = uid();
-      weekData.events.push(payload);
+      targetData.events.push(payload);
     }
 
-    saveWeekData();
+    saveWeekData(targetWeek, targetData);
     resetEventForm();
     renderAll();
   });
@@ -718,21 +923,24 @@
     var row = e.target.closest(".item-row");
     if (!row) return;
     var id = row.dataset.id;
+    var targetWeek = row.dataset.week;
+    var targetData = dataForWeek(targetWeek);
 
     if (e.target.closest(".js-delete-event")) {
-      weekData.events = weekData.events.filter(function (ev) { return ev.id !== id; });
-      saveWeekData();
-      if (editingEventId === id) resetEventForm();
+      targetData.events = targetData.events.filter(function (ev) { return ev.id !== id; });
+      saveWeekData(targetWeek, targetData);
+      if (editingEventId === id && editingEventWeek === targetWeek) resetEventForm();
       renderAll();
       return;
     }
 
     if (e.target.closest(".js-edit-event")) {
-      var ev = weekData.events.find(function (x) { return x.id === id; });
+      var ev = targetData.events.find(function (x) { return x.id === id; });
       if (!ev) return;
       editingEventId = id;
+      editingEventWeek = targetWeek;
       el.eventTitle.value = ev.title;
-      el.eventDay.value = String(ev.day);
+      el.eventDay.value = row.dataset.date;
       el.eventStart.value = ev.start;
       el.eventEnd.value = ev.end;
       el.eventCategory.value = ev.category;
@@ -794,6 +1002,7 @@
   });
 
   window.addEventListener("beforeprint", updatePageSizeStyle);
+  window.addEventListener("afterprint", function () { requestAnimationFrame(scalePreview); });
 
   /* ---------------------------------------------------------
      リサイズ対応
@@ -801,9 +1010,10 @@
 
   var resizeTimer = null;
   window.addEventListener("resize", function () {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(scalePreview, 120);
+    cancelAnimationFrame(resizeTimer);
+    resizeTimer = requestAnimationFrame(scalePreview);
   });
+  if (typeof ResizeObserver !== "undefined") new ResizeObserver(scalePreview).observe(el.previewViewport);
 
   /* ---------------------------------------------------------
      外部連携用ブリッジ（cloud-sync.js から利用）
@@ -819,6 +1029,8 @@
     getSettings: function () { return Object.assign({}, settings); },
 
     getCurrentWeekISO: function () { return settings.currentWeekStart; },
+    getVisibleWeekISOs: visibleWeeks,
+    getVisibleDates: visibleDates,
 
     getWeekData: function (iso) {
       if (iso === settings.currentWeekStart) return JSON.parse(JSON.stringify(weekData));
@@ -867,8 +1079,8 @@
         todos: Array.isArray(remote.todos) ? remote.todos : []
       };
       try { localStorage.setItem(weekKey(iso), JSON.stringify(normalized)); } catch (e) {}
-      if (iso === settings.currentWeekStart) {
-        weekData = normalized;
+      if (iso === settings.currentWeekStart) weekData = normalized;
+      if (visibleWeeks().indexOf(iso) >= 0) {
         renderEventList();
         renderTodoList();
         renderPrintArea();

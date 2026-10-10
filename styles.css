@@ -414,8 +414,16 @@ ul{ list-style:none; margin:0; padding:0; }
   box-shadow:0 2px 18px rgba(0,0,0,0.18);
 }
 
-.print-area.orientation-landscape{ width:297mm; height:210mm; padding:9mm 11mm; }
-.print-area.orientation-portrait{  width:210mm; height:297mm; padding:10mm 9mm; }
+.print-area.orientation-landscape{ width:297mm; }
+.print-area.orientation-portrait{ width:210mm; }
+.pa-sheet{ position:relative; display:flex; flex-direction:column; flex:none; background:#fff; }
+.orientation-landscape .pa-sheet{ height:210mm; padding:9mm 11mm; }
+.orientation-portrait .pa-sheet{ height:297mm; padding:10mm 9mm; }
+.pa-sheet + .pa-sheet{ margin-top:16px; }
+.pa-details-title{ font-size:4mm; margin-bottom:4mm; }
+.pa-details-body{ flex:1; min-height:0; overflow:hidden; font-size:3.4mm; line-height:1.6; }
+.pa-details-body p{ margin:0; padding:2mm 0; border-bottom:0.2mm solid var(--color-line); white-space:pre-wrap; overflow-wrap:anywhere; }
+.pa-overflow-note{ position:absolute; bottom:3mm; left:11mm; font-size:2.6mm; }
 
 /* ---- 用紙ヘッダー ---- */
 .pa-titlebar{
@@ -497,8 +505,9 @@ ul{ list-style:none; margin:0; padding:0; }
 
 /* --- リスト型（テンプレート02・03） --- */
 .pa-daygrid{ flex:1; min-height:0; display:grid; gap:2mm; }
-.pa-daygrid.is-landscape{ grid-template-columns:repeat(7,1fr); }
-.pa-daygrid.is-portrait{ grid-template-columns:repeat(2,1fr); grid-auto-rows:1fr; }
+.pa-daygrid.is-landscape{ grid-template-columns:repeat(var(--card-columns, 7),minmax(0,1fr)); }
+.pa-daygrid.is-portrait{ grid-template-columns:repeat(var(--card-columns, 2),minmax(0,1fr)); grid-auto-rows:1fr; }
+.pa-daygrid.is-portrait .pa-daycard:last-child:nth-child(odd){ grid-column:1 / -1; }
 
 .pa-daycard{
   border:0.3mm solid var(--color-line-strong);
@@ -521,7 +530,8 @@ ul{ list-style:none; margin:0; padding:0; }
 .pa-daycard-head .date{ font-size:2.6mm; color:#555; }
 
 .pa-daycard-events{ flex:none; padding:1.2mm 2mm 0; display:flex; flex-direction:column; gap:1mm; }
-.pa-daycard-event{ font-size:2.35mm; line-height:1.35; display:flex; align-items:baseline; gap:1mm; }
+.pa-daycard-event{ font-size:2.8mm; line-height:1.4; overflow-wrap:anywhere; }
+.pa-daycard-event .t{ display:block; }
 .pa-daycard-event .t{ color:#555; font-variant-numeric:tabular-nums; flex:none; }
 
 .pa-daycard-ruled{
@@ -550,7 +560,8 @@ ul{ list-style:none; margin:0; padding:0; }
 }
 .pa-panel-body{ flex:1; min-height:0; padding:1.6mm 2.4mm; overflow:hidden; }
 
-.pa-todo-item{ display:flex; align-items:baseline; gap:1.6mm; font-size:2.7mm; padding:0.8mm 0; }
+.pa-todo-item{ display:flex; align-items:baseline; gap:1.6mm; font-size:2.7mm; padding:0.8mm 0; overflow-wrap:anywhere; }
+.pa-todo-item > span:last-child{ min-width:0; }
 .pa-todo-box{
   flex:none; width:2.8mm; height:2.8mm; border:0.3mm solid #555; margin-top:0.4mm;
 }
@@ -909,22 +920,53 @@ body.pw-cloud-enabled .topbar-auth{ display:flex; }
    ========================================================= */
 
 @media print{
-  html, body{ background:#fff; }
-
-  body *{ visibility:hidden; }
-  #printArea, #printArea *{ visibility:visible; }
+  html, body{ background:#fff; margin:0; padding:0; }
+  .no-print, .topbar, .sync-banner, .control-pane, .preview-pane-head, .app-footer { display:none !important; }
+  .app, .workspace, .preview-pane, .preview-viewport, .preview-scaler {
+    display:block !important; width:auto !important; height:auto !important; min-height:0 !important;
+    margin:0 !important; padding:0 !important; overflow:visible !important; border:0 !important;
+  }
 
   #printArea{
-    position:fixed;
-    top:0; left:0;
+    position:relative;
     margin:0;
     box-shadow:none;
     transform:none !important;
+    print-color-adjust:exact;
+    -webkit-print-color-adjust:exact;
   }
+  .pa-sheet{ break-inside:avoid; break-after:page; margin:0 !important; }
+  .pa-sheet:last-child{ break-after:auto; }
 
   /* 画面用のアニメーション・トランジションが印刷結果に影響しないようにする */
   *, *::before, *::after{
     animation:none !important;
     transition:none !important;
   }
+}
+
+/* Date selection shares the existing paper palette and button interactions. */
+[hidden]{ display:none !important; }
+.date-fields{ display:flex; align-items:end; gap:10px; margin-top:12px; flex-wrap:wrap; }
+.date-fields .field-label{ flex:1; min-width:125px; margin:0; }
+.date-fields input{ width:100%; min-width:0; }
+.date-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+.date-chip{ font-size:12px; padding:6px 8px; background:var(--color-accent-soft); border-radius:var(--radius-s); }
+.week-range{ min-width:0; max-width:480px; overflow-wrap:anywhere; }
+.pa-titlebar{ gap:4mm; }
+.pa-titlebar-name{ flex:none; }
+.pa-titlebar-range{ font-size:3mm; text-align:right; overflow-wrap:anywhere; }
+.pa-event{ font-size:2.8mm; overflow-wrap:anywhere; }
+.pa-event-time{ font-size:2.5mm; }
+.print-area[data-days="1"] .pa-daycard-event,
+.print-area[data-days="2"] .pa-daycard-event,
+.print-area[data-days="3"] .pa-daycard-event{ font-size:3.2mm; }
+.print-area[data-days="1"] .pa-daylabel,
+.print-area[data-days="2"] .pa-daylabel,
+.print-area[data-days="3"] .pa-daylabel{ padding-bottom:3mm; }
+@media screen and (max-width:620px){
+  .topbar-center, .topbar-right{ flex-wrap:wrap; }
+  .week-range{ flex:1; min-width:150px; }
+  .workspace{ padding:12px; min-width:0; }
+  .preview-pane, .control-pane{ min-width:0; }
 }

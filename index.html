@@ -9,7 +9,7 @@
 </head>
 <body>
 
-<div class="app no-print">
+<div class="app">
 
   <header class="topbar">
     <div class="topbar-left">
@@ -68,6 +68,30 @@
       <!-- 用紙・書式タブ -->
       <div class="tab-panel is-active" data-panel="settings">
 
+        <div class="control-block date-controls">
+          <h2 class="control-title">表示・印刷する日付</h2>
+          <div class="segmented" id="dateModeSwitch" aria-label="日付の選び方">
+            <button type="button" class="segmented-btn" data-mode="range">連続する日付</button>
+            <button type="button" class="segmented-btn" data-mode="custom">個別に選ぶ</button>
+          </div>
+          <div id="rangeControls" class="date-fields">
+            <label class="field-label">開始日<input id="viewStart" type="date" min="1000-01-01" max="9998-12-25"></label>
+            <label class="field-label">日数<select id="viewCount">
+              <option value="1">1日</option><option value="2">2日</option><option value="3">3日</option>
+              <option value="4">4日</option><option value="5">5日</option><option value="6">6日</option><option value="7">7日（1週間）</option>
+            </select></label>
+          </div>
+          <div id="customControls" hidden>
+            <div class="date-fields">
+              <label class="field-label">日付を選ぶ<input id="customDate" type="date" min="1000-01-01" max="9998-12-31"></label>
+              <button id="addDateBtn" type="button" class="ghost-btn">追加</button>
+            </div>
+            <p class="control-note">1〜7日を選択できます。日付順に表示します。</p>
+          </div>
+          <div id="selectedDates" class="date-chips" aria-label="選択中の日付"></div>
+          <p id="dateStatus" class="control-note" role="status" aria-live="polite"></p>
+        </div>
+
         <div class="control-block">
           <h2 class="control-title">用紙の向き</h2>
           <div class="segmented" id="orientationSwitch">
@@ -84,7 +108,7 @@
               <input type="radio" name="template" value="01" checked>
               <span class="template-option-body">
                 <span class="template-option-name">01 週間タイムライン</span>
-                <span class="template-option-desc">時間軸＋7日間の時間割表示</span>
+                <span class="template-option-desc">時間軸＋選択した日付の時間割表示</span>
               </span>
             </label>
             <label class="template-option">
@@ -140,7 +164,7 @@
             <input type="text" id="eventTitle" placeholder="例：数学の宿題" required>
           </label>
 
-          <label class="field-label">曜日
+          <label class="field-label">日付
             <select id="eventDay">
               <option value="0">月曜日</option>
               <option value="1">火曜日</option>
@@ -177,7 +201,7 @@
         </form>
 
         <div class="control-block">
-          <h2 class="control-title">今週の予定一覧</h2>
+          <h2 class="control-title">表示中の日付の予定</h2>
           <ul class="item-list" id="eventListUI"></ul>
         </div>
 
@@ -185,6 +209,10 @@
 
       <!-- TODOタブ -->
       <div class="tab-panel" data-panel="todos">
+        <div class="control-block">
+          <label class="field-label">TODO・コピーの対象週<select id="todoWeek"></select></label>
+          <p class="control-note">TODOは従来どおり週ごとに保存します。印刷には選択日を含む各週のTODOを掲載します。</p>
+        </div>
         <form class="control-block" id="todoForm">
           <h2 class="control-title">TODOを追加</h2>
           <div class="form-actions form-actions-inline">
@@ -329,6 +357,7 @@
 <!-- 通信エラーなどのトースト -->
 <div class="toast no-print" id="toast" hidden></div>
 
+<script src="dates.js"></script>
 <script src="app.js"></script>
 <script src="ui-auth.js"></script>
 <script type="module" src="firebase-init.js"></script>
