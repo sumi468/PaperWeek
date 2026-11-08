@@ -40,6 +40,7 @@ import {
   collection,
   getDocs,
   deleteDoc,
+  runTransaction,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
@@ -123,24 +124,82 @@ function debouncedSaveSettings(settingsSnapshot) {
 }
 
 var weekSaveTimers = {};
+var pendingWeekSaves = {};
+var inFlightWeekSaves = new Set();
+function writePendingWeek(iso, entry) {
+  if (entry.promise) return entry.promise;
+  clearTimeout(weekSaveTimers[iso]);
+  if (!currentUser || currentUser.uid !== entry.uid) return Promise.reject(new Error("ログイン状態が変わりました。再度お試しください。"));
+  ui.showSaveStatus("saving");
+  entry.promise = setDoc(weekDocRef(entry.uid, iso), {
+    events: entry.payload.events, todos: entry.payload.todos, updatedAt: serverTimestamp()
+  }, { merge: true }).then(function () {
+    if (pendingWeekSaves[iso] === entry) delete pendingWeekSaves[iso];
+    ui.showSaveStatus("saved");
+  }).catch(function (err) {
+    entry.promise = null;
+    ui.showSaveStatus("error");
+    throw err;
+  });
+  var operation = entry.promise;
+  inFlightWeekSaves.add(operation);
+  operation.then(function () { inFlightWeekSaves.delete(operation); }, function () { inFlightWeekSaves.delete(operation); });
+  return operation;
+}
+
 function debouncedSaveWeek(iso, weekPayload) {
   if (!currentUser) return;
   clearTimeout(weekSaveTimers[iso]);
+  var entry = { uid: currentUser.uid, payload: weekPayload, promise: null };
+  pendingWeekSaves[iso] = entry;
   weekSaveTimers[iso] = setTimeout(function () {
-    var uid = currentUser.uid;
-    ui.showSaveStatus("saving");
-    setDoc(weekDocRef(uid, iso), {
-      events: weekPayload.events,
-      todos: weekPayload.todos,
-      updatedAt: serverTimestamp()
-    }, { merge: true }).then(function () {
-      ui.showSaveStatus("saved");
-    }).catch(function (err) {
+    writePendingWeek(iso, entry).catch(function (err) {
       console.error("PaperWeek: 予定の保存に失敗", err);
-      ui.showSaveStatus("error");
       ui.showToast("保存できませんでした。通信状態を確認してください。");
     });
   }, 600);
+}
+
+// Read every target week before writing. Transactions also cover weeks not on screen.
+// Ordinary edits already queued on this device must finish before the import starts.
+async function importCloudEvents(events) {
+  var user = currentUser;
+  if (!user || !settingsLoadedOnce || !weekLoadedOnce) throw new Error("ログインして、予定の読み込みが完了してからお試しください。");
+  function checkUser() {
+    if (currentUser !== user) throw new Error("ログイン状態が変わりました。再度お試しください。");
+  }
+  Object.keys(pendingWeekSaves).forEach(function (iso) {
+    var entry = pendingWeekSaves[iso];
+    if (entry.uid === user.uid) writePendingWeek(iso, entry).catch(function () {});
+  });
+  await Promise.all(Array.from(inFlightWeekSaves));
+  checkUser();
+  ui.showSaveStatus("saving");
+  try {
+    var result = await runTransaction(db, async function (transaction) {
+      checkUser();
+      var weeks = window.PaperWeekImport.weekISOs(events);
+      var snapshots = await Promise.all(weeks.map(function (iso) { return transaction.get(weekDocRef(user.uid, iso)); }));
+      checkUser();
+      var existing = {};
+      weeks.forEach(function (iso, index) {
+        var data = snapshots[index].exists() ? snapshots[index].data() : {};
+        existing[iso] = { events: Array.isArray(data.events) ? data.events : [], todos: Array.isArray(data.todos) ? data.todos : [] };
+      });
+      var merged = window.PaperWeekImport.merge(events, existing, function () { return crypto.randomUUID(); });
+      Object.keys(merged.weeks).forEach(function (iso) {
+        transaction.set(weekDocRef(user.uid, iso), Object.assign({}, merged.weeks[iso], { updatedAt: serverTimestamp() }), { merge: true });
+      });
+      return merged;
+    });
+    checkUser();
+    Object.keys(result.weeks).forEach(function (iso) { pw.applyRemoteWeek(iso, result.weeks[iso]); });
+    ui.showSaveStatus("saved");
+    return result;
+  } catch (err) {
+    ui.showSaveStatus("error");
+    throw err;
+  }
 }
 
 /* ---------------------------------------------------------
@@ -272,6 +331,8 @@ if (isConfigured) {
   ui.enableCloudUI();
 
   onAuthStateChanged(auth, function (user) {
+    Object.keys(weekSaveTimers).forEach(function (iso) { clearTimeout(weekSaveTimers[iso]); });
+    pendingWeekSaves = {};
     if (user) {
       currentUser = user;
       ui.showLoggedIn(user.email, getProviderIds(user));
@@ -433,6 +494,8 @@ function reauthenticateAndDeleteAccount(password) {
 }
 
 window.PaperWeekCloud = {
+  importEvents: importCloudEvents,
+  getImportAccount: function () { return currentUser ? { uid: currentUser.uid, email: currentUser.email } : null; },
   isConfigured: function () { return isConfigured; },
   signUp: signUp,
   signIn: signIn,

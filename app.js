@@ -1037,6 +1037,35 @@
     getVisibleWeekISOs: visibleWeeks,
     getVisibleDates: visibleDates,
 
+    importLocalEvents: function (events) {
+      var existing = {};
+      window.PaperWeekImport.weekISOs(events).forEach(function (iso) { existing[iso] = dataForWeek(iso); });
+      var result = window.PaperWeekImport.merge(events, existing, uid);
+      var previous = {};
+      var written = [];
+      try {
+        Object.keys(result.weeks).forEach(function (iso) {
+          previous[iso] = localStorage.getItem(weekKey(iso));
+          localStorage.setItem(weekKey(iso), JSON.stringify(result.weeks[iso]));
+          written.push(iso);
+        });
+      } catch (err) {
+        written.forEach(function (iso) {
+          if (previous[iso] === null) localStorage.removeItem(weekKey(iso));
+          else localStorage.setItem(weekKey(iso), previous[iso]);
+        });
+        throw new Error("端末に保存できませんでした。空き容量とブラウザの保存設定を確認してください。");
+      }
+      if (result.weeks[settings.currentWeekStart]) weekData = result.weeks[settings.currentWeekStart];
+      renderAll();
+      return result;
+    },
+
+    showImportedWeek: function (iso) {
+      view = { mode: "range", start: iso, count: 7, dates: [iso] };
+      changeView();
+    },
+
     getWeekData: function (iso) {
       if (iso === settings.currentWeekStart) return JSON.parse(JSON.stringify(weekData));
       return loadWeekData(iso);

@@ -157,6 +157,16 @@
       <!-- 予定タブ -->
       <div class="tab-panel" data-panel="events">
 
+        <div class="control-block">
+          <h2 class="control-title">予定を取り込む</h2>
+          <p class="control-note" id="importHelp">PaperWeek形式のJSONファイルを選ぶと、内容を確認して追加できます。既存の予定・TODOは残り、同じ予定はスキップします。</p>
+          <label class="field-label">予定ファイル（JSON・1MBまで）
+            <input type="file" id="importFile" accept=".json,application/json" aria-describedby="importHelp importStatus">
+          </label>
+          <button type="button" class="ghost-btn" id="importExampleBtn">サンプルをダウンロード</button>
+          <p class="control-note" id="importStatus" role="status" aria-live="polite"></p>
+        </div>
+
         <form class="control-block event-form" id="eventForm">
           <h2 class="control-title" id="eventFormTitle">予定を追加</h2>
 
@@ -350,6 +360,25 @@
 </div>
 
 <!-- 読み込み中オーバーレイ -->
+<dialog id="importDialog" class="import-dialog no-print" aria-labelledby="importDialogTitle" aria-describedby="importSummary">
+  <h2 id="importDialogTitle">取り込む予定を確認</h2>
+  <p id="importSummary" class="control-note"></p>
+  <p class="control-note">日時はファイル記載のまま追加します。既存の予定は変更せず、同じ予定はスキップします。</p>
+  <ul id="importPreview" class="import-preview"></ul>
+  <label class="field-label">保存先
+    <select id="importDestination">
+      <option value="account">ログイン中のアカウント</option>
+      <option value="device">この端末のみ（ログインしていない場合）</option>
+    </select>
+  </label>
+  <p id="importAccount" class="control-note"></p>
+  <p id="importDialogStatus" class="control-note" role="status" aria-live="polite"></p>
+  <div class="form-actions">
+    <button type="button" id="importConfirmBtn" class="primary-btn">追加して保存</button>
+    <button type="button" id="importCloseBtn" class="ghost-btn" autofocus>キャンセル</button>
+  </div>
+</dialog>
+
 <div class="loading-overlay no-print" id="loadingOverlay" hidden>
   <div class="loading-box">データを読み込んでいます…</div>
 </div>
@@ -358,8 +387,10 @@
 <div class="toast no-print" id="toast" hidden></div>
 
 <script src="dates.js"></script>
+<script src="import-events.js"></script>
 <script src="app.js"></script>
 <script src="ui-auth.js"></script>
+<script src="import-ui.js"></script>
 <script type="module" src="firebase-init.js"></script>
 <script type="module" src="cloud-sync.js"></script>
 </body>
