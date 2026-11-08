@@ -41,3 +41,13 @@ test('content duplicates skip even without source IDs; HTML is kept as plain tex
   assert.equal(merged.skipped,1);
   assert.equal(merged.weeks['2026-11-09'].events[0].title,events[0].title);
 });
+
+test('compressed links decode UTF-8 exactly and reject broken or oversized payloads', async () => {
+  const {gzipSync}=require('node:zlib');
+  const text=file([{...event,title:'日本語の予定'}]);
+  const encoded=gzipSync(Buffer.from(text)).toString('base64url');
+  assert.equal(await importer.decodeLink(encoded),text);
+  for (const bad of ['not-gzip','%', 'x'.repeat(65537),gzipSync(Buffer.alloc(1024*1024+1,65)).toString('base64url')]) {
+    await assert.rejects(importer.decodeLink(bad));
+  }
+});

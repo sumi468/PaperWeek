@@ -44,6 +44,30 @@
     return Array.from(new Set(events.map(function (event) { return dates.week(event.date); }))).sort();
   }
 
+  // Links carry a gzip-compressed JSON payload in the fragment, never in a server request.
+  async function decodeLink(value) {
+    if (!value || value.length > 65536 || !/^[A-Za-z0-9_-]+$/.test(value)) throw new Error("予定リンクの形式が正しくありません。");
+    if (typeof DecompressionStream === "undefined") throw new Error("この予定リンクには新しいバージョンのブラウザが必要です。");
+    try {
+      var bytes = Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), function (c) { return c.charCodeAt(0); });
+      var reader = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip")).getReader();
+      var chunks = [], size = 0;
+      while (true) {
+        var next = await reader.read();
+        if (next.done) break;
+        size += next.value.byteLength;
+        if (size > MAX_BYTES) {
+          await reader.cancel();
+          throw new Error();
+        }
+        chunks.push(next.value);
+      }
+      var all = new Uint8Array(size), offset = 0;
+      chunks.forEach(function (chunk) { all.set(chunk, offset); offset += chunk.byteLength; });
+      return new TextDecoder("utf-8", { fatal: true }).decode(all);
+    } catch (e) { throw new Error("予定リンクを読み込めません。リンク全体を確認してください（展開後1MBまで）。"); }
+  }
+
   // Add only. Preserve existing events, unknown fields, and TODOs, including on re-import.
   function merge(events, existing, newId) {
     var result = { weeks: {}, added: 0, skipped: 0 };
@@ -67,7 +91,7 @@
     return result;
   }
 
-  var api = { parse: parse, merge: merge, weekISOs: weekISOs, MAX_BYTES: MAX_BYTES };
+  var api = { parse: parse, merge: merge, weekISOs: weekISOs, decodeLink: decodeLink, MAX_BYTES: MAX_BYTES };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.PaperWeekImport = api;
 })(typeof window !== "undefined" ? window : globalThis);
