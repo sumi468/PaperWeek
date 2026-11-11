@@ -1,0 +1,17 @@
+{
+  "id": "/",
+  "name": "PaperWeek — かきこみ週間予定表",
+  "short_name": "PaperWeek",
+  "description": "予定を時間軸で整理して、A4に印刷できる週間予定表。",
+  "lang": "ja",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#F6F5F1",
+  "theme_color": "#3C5A6B",
+  "icons": [
+    { "src": "/icons/paperweek-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/paperweek-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/paperweek-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
