@@ -20,6 +20,8 @@
 ## 印刷
 
 - 3テンプレート、A4縦横、4種類の手書き量を維持しています。
+- 手書き量を「アナログ重視」にしても、選択したテンプレートを維持します。
+  時間軸を使う場合は「01 週間タイムライン」、リスト表示は「02 週間プラン」か「03 アナログ」を選びます。
 - 横向きは選択した日数で幅を等分します。縦向きタイムラインは4日まで1段、5〜7日は2段です。
   縦向きプランは1日は1列、2日以上は2列で、最後の余った1日は全幅を使います。
 - 画面プレビューと印刷は同じ用紙DOMを使います。印刷時は操作UIと縮小表示を除きます。
@@ -104,6 +106,7 @@ node --test --test-isolation=none tests/dates.test.cjs tests/sync.test.cjs
 node --test tests/import.test.cjs tests/import-sync.test.cjs
 node tests/import-browser.cjs
 node tests/browser.cjs
+node tests/timeline.cjs
 python tests/check-pdfs.py
 ```
 

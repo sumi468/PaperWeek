@@ -169,6 +169,9 @@
       var week = dates.week(iso);
       return dataForWeek(week).events.filter(function (ev) { return ev.day === dates.day(iso); })
         .map(function (ev) { return Object.assign({}, ev, { date: iso, week: week }); });
+    }).sort(function (a, b) {
+      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+      return timeToMinutes(a.start) - timeToMinutes(b.start);
     });
   }
   function dateLabel(iso) {
@@ -498,7 +501,8 @@
   }
 
   function effectiveTemplate() {
-    return settings.handwrite === "analog" ? "03" : settings.template;
+    // Handwriting space changes the proportions, not the selected layout.
+    return settings.template;
   }
 
   function renderPrintArea() {
@@ -522,6 +526,21 @@
     el.printArea.dataset.days = visibleDates().length;
     el.printArea.style.setProperty("--day-count", visibleDates().length);
     el.printArea.style.setProperty("--card-columns", settings.orientation === "landscape" ? visibleDates().length : Math.min(2, visibleDates().length));
+    // A large handwriting area leaves a shorter timeline. Keep its endpoints
+    // and hide intermediate hour labels that would overlap their neighbours.
+    el.printArea.querySelectorAll(".pa-timecol").forEach(function (column) {
+      var labels = Array.from(column.querySelectorAll(".pa-timecol-label"));
+      if (labels.length < 3) return;
+      var previousBottom = labels[0].offsetHeight;
+      var last = labels[labels.length - 1];
+      var lastTop = last.offsetTop - last.offsetHeight;
+      labels.slice(1, -1).forEach(function (label) {
+        var top = label.offsetTop - label.offsetHeight / 2;
+        var bottom = top + label.offsetHeight;
+        if (top < previousBottom + 2 || bottom > lastTop - 2) label.hidden = true;
+        else previousBottom = bottom;
+      });
+    });
     // Short slots may not fit stacked time/title labels. Use the available
     // column width before falling back to a continuation sheet.
     el.printArea.querySelectorAll(".pa-event").forEach(function (event) {
