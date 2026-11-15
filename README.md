@@ -4,6 +4,17 @@
 フレームワークや本番用依存ライブラリの追加はありません。静的Webサーバーで
 `index.html` を配信します。Firebaseの設定は [README-firebase.md](README-firebase.md) を参照してください。
 
+## スマートフォンでの使い方
+
+画面幅760px以下では、印刷プレビューより先に日付ごとの予定一覧を表示します。
+画面下の「予定」「TODO」「用紙・書式」「プレビュー」で切り替えます。
+「＋ 予定を追加」と「取り込む」からフォームを開き、既存の予定はカードの編集ボタンから変更できます。
+予定のメモは「メモを見る」で全文を展開できます。入力欄は16px、主な操作ボタンは44px以上です。
+
+印刷用紙は別タブで確認でき、予定一覧を開いているときもA4の印刷レイアウトを測定します。
+スマホの表示切り替えは予定の保存内容や日付選択を変更しません。
+PC幅では従来のプレビューと編集パネルを並べる表示を使います。
+
 ## 日付の選択
 
 - 「用紙・書式」→「表示・印刷する日付」で、開始日と1〜7日の日数を指定します。
@@ -102,9 +113,11 @@ Firebaseは選択日を含むすべての週を購読し、不要になった週
 node --check app.js
 node --check dates.js
 node --check cloud-sync.js
+node --check mobile-ui.js
 node --test --test-isolation=none tests/dates.test.cjs tests/sync.test.cjs
 node --test tests/import.test.cjs tests/import-sync.test.cjs
 node tests/import-browser.cjs
+node tests/mobile-browser.cjs
 node tests/browser.cjs
 node tests/timeline.cjs
 python tests/check-pdfs.py
@@ -124,3 +137,7 @@ PDFとスクリーンショットはGit管理対象外の `artifacts/` に出力
 ブラウザでは確認・キャンセル・再取り込み・保存先・通信失敗後の再試行・容量不足時の巻き戻しを検証します。
 Firebaseの取り込み検証はモックを使用し、実アカウントへの書き込みは行いません。
 週をまたぐ移動はFirestoreトランザクションではないため、2つの週への通信は独立して完了します。
+
+今回のスマートフォンUI変更はJavaScript構文と描画・ナビゲーションのロジックを確認しています。
+作業環境が利用できないため、今回追加の `tests/mobile-browser.cjs` と既存のブラウザ/PDF回帰テストは
+この変更時には実行できていません。公開前後のスマートフォン画面、実機操作、印刷の確認が必要です。

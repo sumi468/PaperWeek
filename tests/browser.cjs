@@ -129,6 +129,7 @@ const server = http.createServer((req,res) => {
       }
     }
     await page.setViewportSize({width:390,height:844});
+    await page.click('[data-tab="preview"]');
     await page.waitForFunction(()=>document.querySelector('#printArea').getBoundingClientRect().width <= document.querySelector('#previewViewport').clientWidth);
     await page.waitForTimeout(300); // Let the existing preview transform transition settle.
     await page.screenshot({path:path.join(out,'mobile.png'),fullPage:true});
@@ -142,6 +143,7 @@ const server = http.createServer((req,res) => {
     assert.equal(await page.locator('#printArea').isVisible(),true);
     await page.emulateMedia({media:'screen'});
     await page.setViewportSize({width:1440,height:1000});
+    await page.click('[data-tab="settings"]');
     await page.locator('[data-orientation="landscape"]').click();
     await page.check('input[name="template"][value="01"]');
     await page.selectOption('#viewCount','2');

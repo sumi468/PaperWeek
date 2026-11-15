@@ -651,22 +651,31 @@
     });
 
     if (!events.length) {
-      el.eventListUI.innerHTML = '<li class="empty-note">まだ予定がありません。上のフォームから追加してください。</li>';
+      el.eventListUI.innerHTML = '<li class="empty-note"><strong>この期間の予定はまだありません</strong><br>「予定を追加」や「取り込む」から予定を入れられます。</li>';
       return;
     }
 
+    var previousDate = null;
+    var today = toISODate(new Date());
     el.eventListUI.innerHTML = events.map(function (ev) {
       var cat = categoryOf(ev.category);
-      return (
+      var heading = "";
+      if (ev.date !== previousDate) {
+        heading = '<li class="event-day-heading"><h3>' + dateLabel(ev.date) +
+          (ev.date === today ? '<span class="today-badge">今日</span>' : '') + '</h3></li>';
+        previousDate = ev.date;
+      }
+      return heading + (
         '<li class="item-row" data-week="' + ev.week + '" data-date="' + ev.date + '" data-id="' + escapeHtml(ev.id) + '">' +
-          '<span class="item-badge" style="background:' + cat.hex + '">' + cat.badge + "</span>" +
-          '<span class="item-main">' +
+          '<span class="item-badge" title="' + cat.name + '" style="background:' + cat.hex + '">' + cat.badge + "</span>" +
+          '<div class="item-main">' +
             '<span class="item-title">' + escapeHtml(ev.title) + "</span><br>" +
-            '<span class="item-sub">' + dateLabel(ev.date) + " " + ev.start + "〜" + ev.end + "</span>" +
-          "</span>" +
+            '<span class="item-sub"><span class="event-date">' + dateLabel(ev.date) + ' </span>' + ev.start + "〜" + ev.end + "</span>" +
+            (ev.memo ? '<details class="event-memo"><summary>メモを見る</summary><p>' + escapeHtml(ev.memo) + '</p></details>' : '') +
+          "</div>" +
           '<span class="item-actions">' +
-            '<button type="button" class="js-edit-event" title="編集">✎</button>' +
-            '<button type="button" class="js-delete-event danger" title="削除">✕</button>' +
+            '<button type="button" class="js-edit-event" title="編集" aria-label="' + escapeHtml(ev.title) + 'を編集">✎</button>' +
+            '<button type="button" class="js-delete-event danger" title="削除" aria-label="' + escapeHtml(ev.title) + 'を削除">✕</button>' +
           "</span>" +
         "</li>"
       );

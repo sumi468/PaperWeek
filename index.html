@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>PaperWeek — かきこみ週間予定表</title>
 <meta name="theme-color" content="#3C5A6B">
 <meta name="apple-mobile-web-app-title" content="PaperWeek">
@@ -13,6 +13,7 @@
 <link rel="manifest" href="/site.webmanifest">
 <style id="pageSizeStyle">@page { size: A4 landscape; margin: 0; }</style>
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="mobile.css">
 </head>
 <body>
 
@@ -66,10 +67,11 @@
 
     <aside class="control-pane">
 
-      <nav class="tabs" id="controlTabs">
-        <button class="tab-btn is-active" data-tab="settings">用紙・書式</button>
-        <button class="tab-btn" data-tab="events">予定</button>
-        <button class="tab-btn" data-tab="todos">TODO</button>
+      <nav class="tabs" id="controlTabs" aria-label="表示の切り替え">
+        <button class="tab-btn is-active" data-tab="settings"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3"/><circle cx="15" cy="17" r="3"/></svg><span>用紙・書式</span></button>
+        <button class="tab-btn" data-tab="events"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 3v4m8-4v4M4 11h16m-11 4h2m3 0h2"/></svg><span>予定</span></button>
+        <button class="tab-btn" data-tab="todos"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 3 3 5-6"/></svg><span>TODO</span></button>
+        <button type="button" class="tab-btn mobile-only" data-tab="preview"><svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h8l4 4v14H6zM14 3v5h4M9 12h6m-6 4h6"/></svg><span>プレビュー</span></button>
       </nav>
 
       <!-- 用紙・書式タブ -->
@@ -159,11 +161,23 @@
           </div>
           <p class="control-note">テンプレート「01」でのみ使用されます。</p>
         </div>
+        <div class="control-block mobile-only">
+          <h2 class="control-title">予定のコピー</h2>
+          <button type="button" class="ghost-btn" id="mobileCopyWeekBtn">先週の予定・TODOをコピー</button>
+        </div>
 
       </div>
 
       <!-- 予定タブ -->
       <div class="tab-panel" data-panel="events">
+
+        <div class="mobile-event-actions mobile-only">
+          <button type="button" class="primary-btn" id="mobileAddEventBtn">＋ 予定を追加</button>
+          <button type="button" class="ghost-btn" id="mobileImportBtn">取り込む</button>
+        </div>
+
+        <details class="control-block mobile-disclosure import-tools" id="importTools" open>
+          <summary>予定ファイルを取り込む</summary>
 
         <div class="control-block">
           <h2 class="control-title">予定を取り込む</h2>
@@ -175,7 +189,11 @@
           <p class="control-note" id="importStatus" role="status" aria-live="polite"></p>
         </div>
 
-        <form class="control-block event-form" id="eventForm">
+        </details>
+
+        <details class="control-block mobile-disclosure" id="eventEditor" open>
+          <summary>予定を追加・編集</summary>
+        <form class="event-form" id="eventForm">
           <h2 class="control-title" id="eventFormTitle">予定を追加</h2>
 
           <label class="field-label">予定名
@@ -218,7 +236,9 @@
           </div>
         </form>
 
-        <div class="control-block">
+        </details>
+
+        <div class="control-block events-list-block">
           <h2 class="control-title">表示中の日付の予定</h2>
           <ul class="item-list" id="eventListUI"></ul>
         </div>
@@ -400,6 +420,7 @@
 <script src="app.js"></script>
 <script src="ui-auth.js"></script>
 <script src="import-ui.js"></script>
+<script src="mobile-ui.js"></script>
 <script type="module" src="firebase-init.js"></script>
 <script type="module" src="cloud-sync.js"></script>
 </body>
