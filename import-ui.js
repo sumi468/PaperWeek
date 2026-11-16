@@ -6,12 +6,16 @@
   var file = el("importFile"), dialog = el("importDialog"), confirm = el("importConfirmBtn"), close = el("importCloseBtn");
   var destination = el("importDestination");
   var parsed = null, busy = false, previewAccount = null, loadedText = "";
+  function status(id, message, state) {
+    el(id).textContent = message;
+    el(id).dataset.state = state || "info";
+  }
   function account() {
     return window.PaperWeekCloud ? window.PaperWeekCloud.getImportAccount() : null;
   }
   function accountNote() {
     el("importAccount").textContent = destination.value === "device" ? "このブラウザに保存します。クラウドには同期しません。" :
-      (previewAccount ? previewAccount.email + " に保存し、同じアカウントの端末にも同期します。" : "ログインと予定の読み込みが必要です。キャンセルしてログインしてから、ファイルを選び直してください。");
+      (previewAccount ? previewAccount.email + " に保存し、ほかの端末にも同期します。" : "アカウントに保存するには、ログインと予定の読み込みが必要です。");
   }
   destination.addEventListener("change", accountNote);
 
@@ -32,18 +36,44 @@
     destination.querySelector('[value="device"]').disabled = !!previewAccount;
     accountNote();
     var events = parsed.events;
-    el("importSummary").textContent = events.length + "件 ／ " + events[0].date + " 〜 " + events[events.length - 1].date + " ／ タイムゾーン：" + parsed.timeZone;
+    el("importSummary").replaceChildren();
+    [
+      ["import-count", events.length + "件"],
+      ["import-range", events[0].date + (events[0].date === events[events.length - 1].date ? "" : " 〜 " + events[events.length - 1].date)],
+      ["import-zone", parsed.timeZone]
+    ].forEach(function (part) {
+      var span = document.createElement("span");
+      span.className = part[0];
+      span.textContent = part[1];
+      el("importSummary").appendChild(span);
+    });
     el("importPreview").replaceChildren();
     events.forEach(function (event) {
       var item = document.createElement("li");
-      item.textContent = event.date + " " + event.start + "〜" + event.end + "　" + event.title + (event.memo ? " ／ " + event.memo : "");
+      var meta = document.createElement("span");
+      meta.className = "import-event-meta";
+      meta.textContent = event.date + "　" + event.start + "〜" + event.end;
+      var title = document.createElement("span");
+      title.className = "import-event-title";
+      title.textContent = event.title;
+      item.append(meta, title);
+      if (event.memo) {
+        var memo = document.createElement("details");
+        memo.className = "import-event-memo";
+        var summary = document.createElement("summary");
+        summary.textContent = "メモを確認";
+        var text = document.createElement("p");
+        text.textContent = event.memo;
+        memo.append(summary, text);
+        item.appendChild(memo);
+      }
       el("importPreview").appendChild(item);
     });
     confirm.hidden = false;
     destination.disabled = false;
-    el("importDialogStatus").textContent = "ダウンロードだけでも利用できます。反映する場合は「追加して保存」を押してください。";
+    status("importDialogStatus", "まだ保存していません。");
     close.textContent = "キャンセル";
-    el("importStatus").textContent = "内容を確認してください。まだ保存していません。";
+    status("importStatus", "内容を確認してください。まだ保存していません。");
     document.querySelector('[data-tab="events"]').click();
     if (!dialog.open) dialog.showModal();
   }
@@ -57,13 +87,13 @@
   file.addEventListener("change", async function () {
     var selected = file.files[0];
     if (!selected) return;
-    el("importStatus").textContent = "読み込んでいます…";
+    status("importStatus", "読み込んでいます…");
     try {
       if (selected.size > importer.MAX_BYTES) throw new Error("ファイルは1MB以下にしてください。");
       preview(await selected.text());
     } catch (err) {
       parsed = null;
-      el("importStatus").textContent = err.message;
+      status("importStatus", err.message, "error");
     } finally { file.value = ""; }
   });
 
@@ -72,8 +102,9 @@
   confirm.addEventListener("click", async function () {
     if (busy || !parsed) return;
     busy = true;
-    confirm.disabled = close.disabled = destination.disabled = true;
-    el("importDialogStatus").textContent = "保存しています…この画面を閉じずにお待ちください。";
+    confirm.disabled = close.disabled = destination.disabled = el("importDownloadBtn").disabled = true;
+    confirm.textContent = "保存しています…";
+    status("importDialogStatus", "保存しています…この画面を閉じずにお待ちください。");
     try {
       var current = account(), result;
       if ((previewAccount && (!current || current.uid !== previewAccount.uid)) || (!previewAccount && current)) {
@@ -91,16 +122,18 @@
         result = pw.importLocalEvents(parsed.events);
       }
       var message = result.added + "件を" + (destination.value === "account" ? "アカウント" : "この端末") + "に保存しました。重複" + result.skipped + "件をスキップしました。";
-      el("importDialogStatus").textContent = el("importStatus").textContent = message;
+      status("importDialogStatus", message, "success");
+      status("importStatus", message, "success");
       confirm.hidden = true;
       close.textContent = "閉じる";
       pw.showImportedWeek(window.PaperWeekDates.week(parsed.events[0].date));
       parsed = null;
     } catch (err) {
-      el("importDialogStatus").textContent = "取り込みを完了できませんでした。" + (err.code ? "通信状態とログイン状態を確認して、もう一度お試しください。" : err.message);
+      status("importDialogStatus", "取り込みを完了できませんでした。" + (err.code ? "通信状態とログイン状態を確認して、もう一度お試しください。" : err.message), "error");
     } finally {
       busy = false;
-      confirm.disabled = close.disabled = destination.disabled = false;
+      confirm.disabled = close.disabled = destination.disabled = el("importDownloadBtn").disabled = false;
+      confirm.textContent = "追加して保存";
       close.focus();
     }
   });
@@ -121,7 +154,7 @@
     try { preview(await importer.decodeLink(value)); }
     catch (err) {
       document.querySelector('[data-tab="events"]').click();
-      el("importStatus").textContent = err.message;
+      status("importStatus", err.message, "error");
     }
   }
   window.addEventListener("hashchange", openLink);

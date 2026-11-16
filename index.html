@@ -21,12 +21,13 @@
 
   <header class="topbar">
     <div class="topbar-left">
-      <h1 class="app-title">PaperWeek <span class="app-title-sub">かきこみ週間予定表</span></h1>
+      <h1 class="app-title"><img class="brand-mark" src="icons/paperweek-32.png" width="28" height="28" alt="">PaperWeek <span class="app-title-sub">かきこみ週間予定表</span></h1>
     </div>
 
     <div class="topbar-center">
       <button id="prevWeekBtn" class="icon-btn" title="前の週" aria-label="前の週">‹</button>
       <div class="week-range" id="weekRangeLabel">2026年9月14日 〜 9月20日</div>
+      <div class="mobile-week-range mobile-only" id="mobileWeekRange" role="group"></div>
       <button id="nextWeekBtn" class="icon-btn" title="次の週" aria-label="次の週">›</button>
       <button id="todayBtn" class="ghost-btn">今週</button>
     </div>
@@ -34,7 +35,7 @@
     <div class="topbar-right">
       <button id="copyLastWeekBtn" class="ghost-btn">先週の予定をコピー</button>
       <span class="save-status no-print" id="saveStatus" hidden></span>
-      <button id="printBtn" class="primary-btn">印刷する</button>
+      <button id="printBtn" class="primary-btn" aria-label="予定表を印刷"><svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4V9h16v8h-3"/><path d="M7 14h10v7H7zM17 11h.01"/></svg><span>印刷</span></button>
 
       <div class="topbar-auth" id="topbarAuth">
         <div class="auth-state auth-state-out" id="authStateOut">
@@ -42,7 +43,7 @@
         </div>
         <div class="auth-state auth-state-in" id="authStateIn" hidden>
           <span class="auth-email" id="authEmailLabel"></span>
-          <button id="openAccountBtn" class="ghost-btn">アカウント</button>
+          <button id="openAccountBtn" class="ghost-btn" aria-label="アカウント"><svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg><span>アカウント</span></button>
           <button id="logoutBtn" class="ghost-btn">ログアウト</button>
         </div>
       </div>
@@ -171,9 +172,11 @@
       <!-- 予定タブ -->
       <div class="tab-panel" data-panel="events">
 
+        <div class="mobile-overview mobile-only"><h2>予定</h2><span id="mobileEventCount"></span></div>
+
         <div class="mobile-event-actions mobile-only">
-          <button type="button" class="primary-btn" id="mobileAddEventBtn">＋ 予定を追加</button>
-          <button type="button" class="ghost-btn" id="mobileImportBtn">取り込む</button>
+          <button type="button" class="primary-btn" id="mobileAddEventBtn"><svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>予定を追加</span></button>
+          <button type="button" class="ghost-btn" id="mobileImportBtn"><svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6"/></svg><span>取り込む</span></button>
         </div>
 
         <details class="control-block mobile-disclosure import-tools" id="importTools" open>
@@ -181,9 +184,9 @@
 
         <div class="control-block">
           <h2 class="control-title">予定を取り込む</h2>
-          <p class="control-note" id="importHelp">PaperWeek形式のJSONファイルを選ぶと、内容を確認して追加できます。既存の予定・TODOは残り、同じ予定はスキップします。</p>
-          <label class="field-label">予定ファイル（JSON・1MBまで）
-            <input type="file" id="importFile" accept=".json,application/json" aria-describedby="importHelp importStatus">
+          <p class="control-note" id="importHelp">ファイルを選び、内容を確認してから追加します。既存の予定・TODOは残ります。</p>
+          <label class="file-picker"><svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M4 15v6h16v-6"/></svg><span><strong>予定ファイルを選ぶ</strong><small>JSON形式・1MBまで</small></span>
+            <input type="file" id="importFile" accept=".json,application/json" aria-label="予定ファイルを選ぶ" aria-describedby="importHelp importStatus">
           </label>
           <button type="button" class="ghost-btn" id="importExampleBtn">サンプルをダウンロード</button>
           <p class="control-note" id="importStatus" role="status" aria-live="polite"></p>
@@ -192,7 +195,7 @@
         </details>
 
         <details class="control-block mobile-disclosure" id="eventEditor" open>
-          <summary>予定を追加・編集</summary>
+          <summary><span id="eventEditorLabel">予定を追加</span></summary>
         <form class="event-form" id="eventForm">
           <h2 class="control-title" id="eventFormTitle">予定を追加</h2>
 
@@ -254,7 +257,7 @@
         <form class="control-block" id="todoForm">
           <h2 class="control-title">TODOを追加</h2>
           <div class="form-actions form-actions-inline">
-            <input type="text" id="todoText" placeholder="例：提出物を出す" required>
+            <input type="text" id="todoText" aria-label="TODOの内容" placeholder="例：提出物を出す" required>
             <button type="submit" class="primary-btn">追加</button>
           </div>
         </form>
@@ -391,7 +394,7 @@
 <dialog id="importDialog" class="import-dialog no-print" aria-labelledby="importDialogTitle" aria-describedby="importSummary">
   <h2 id="importDialogTitle">取り込む予定を確認</h2>
   <p id="importSummary" class="control-note"></p>
-  <p class="control-note">日時はファイル記載のまま追加します。既存の予定は変更せず、同じ予定はスキップします。</p>
+  <p class="control-note">内容と保存先を確認してください。既存の予定は残し、重複する予定はスキップします。</p>
   <ul id="importPreview" class="import-preview"></ul>
   <label class="field-label">保存先
     <select id="importDestination">

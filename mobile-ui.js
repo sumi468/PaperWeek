@@ -1,11 +1,17 @@
 /* Responsive navigation changes presentation only; all saves use app.js. */
 (function () {
   "use strict";
-  var narrow = window.matchMedia("(max-width: 760px)");
+  var narrow = window.matchMedia("(max-width: 760px), (max-width: 980px) and (max-height: 500px)");
   var tabs = document.getElementById("controlTabs");
   var editor = document.getElementById("eventEditor");
   var imports = document.getElementById("importTools");
   var buttons = Array.from(tabs.querySelectorAll("[data-tab]"));
+
+  function editorLabel() {
+    document.getElementById("eventEditorLabel").textContent = document.getElementById("eventFormTitle").textContent;
+  }
+  new MutationObserver(editorLabel).observe(document.getElementById("eventFormTitle"), { childList: true });
+  editorLabel();
 
   function activeTab() {
     var selected = tabs.querySelector(".is-active");

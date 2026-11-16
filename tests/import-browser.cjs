@@ -38,7 +38,7 @@ const payload=JSON.stringify({format:'paperweek-events',version:1,timeZone:'Asia
       await page.locator('#importDialog').waitFor({state:'visible'});
     }
     await choose();
-    assert.match(await page.locator('#importSummary').innerText(),/2件.*Asia\/Tokyo/);
+    assert.match(await page.locator('#importSummary').innerText(),/2件[\s\S]*Asia\/Tokyo/);
     assert.equal(await page.locator('#importPreview img').count(),0);
     assert.match(await page.locator('#importPreview').innerText(),/<img src=x/);
     await page.click('#importCloseBtn');

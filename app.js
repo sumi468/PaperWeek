@@ -637,6 +637,16 @@
   function renderTopbar() {
     var monday = fromISODate(settings.currentWeekStart);
     el.weekRangeLabel.textContent = selectionLabel();
+    var selected = visibleDates();
+    var first = dates.parse(selected[0]);
+    var last = dates.parse(selected[selected.length - 1]);
+    var compact = (first.getMonth() + 1) + "月" + first.getDate() + "日";
+    if (view.mode === "custom") compact = "選択した" + selected.length + "日間";
+    else if (selected.length > 1) compact += " − " + (first.getFullYear() !== last.getFullYear() ? last.getFullYear() + "年" : "") +
+      (first.getMonth() !== last.getMonth() || first.getFullYear() !== last.getFullYear() ? (last.getMonth() + 1) + "月" : "") + last.getDate() + "日";
+    var mobileRange = document.getElementById("mobileWeekRange");
+    mobileRange.setAttribute("aria-label", selectionLabel());
+    mobileRange.innerHTML = '<strong>' + compact + '</strong><span>' + first.getFullYear() + "年・" + selected.length + '日間</span>';
     el.prevWeekBtn.title = el.prevWeekBtn.ariaLabel = view.mode === "range" ? "前の期間" : "選択日を1週間前へ";
     el.nextWeekBtn.title = el.nextWeekBtn.ariaLabel = view.mode === "range" ? "次の期間" : "選択日を1週間後へ";
     el.copyLastWeekBtn.title = settings.currentWeekStart + "の週へ先週の予定・TODOをコピー";
@@ -649,33 +659,34 @@
       if (a.date !== b.date) return a.date.localeCompare(b.date);
       return timeToMinutes(a.start) - timeToMinutes(b.start);
     });
-
+    document.getElementById("mobileEventCount").textContent = events.length + "件の予定";
     if (!events.length) {
-      el.eventListUI.innerHTML = '<li class="empty-note"><strong>この期間の予定はまだありません</strong><br>「予定を追加」や「取り込む」から予定を入れられます。</li>';
+      el.eventListUI.innerHTML = '<li class="empty-note"><strong>この期間の予定はまだありません</strong><span>「予定を追加」か「取り込む」から<br>この期間の予定を入れられます。</span></li>';
       return;
     }
-
     var previousDate = null;
     var today = toISODate(new Date());
     el.eventListUI.innerHTML = events.map(function (ev) {
       var cat = categoryOf(ev.category);
       var heading = "";
       if (ev.date !== previousDate) {
-        heading = '<li class="event-day-heading"><h3>' + dateLabel(ev.date) +
-          (ev.date === today ? '<span class="today-badge">今日</span>' : '') + '</h3></li>';
+        var date = dates.parse(ev.date);
+        var count = events.filter(function (item) { return item.date === ev.date; }).length;
+        heading = '<li class="event-day-heading"><h3 aria-label="' + dateLabel(ev.date) + '"><span class="day-date">' + (date.getMonth() + 1) + '/' + date.getDate() + '</span><span class="day-week">' + DOW_LABELS[dates.day(ev.date)] + '曜日</span>' +
+          (ev.date === today ? '<span class="today-badge">今日</span>' : '') + '<span class="day-count">' + count + '件</span></h3></li>';
         previousDate = ev.date;
       }
       return heading + (
-        '<li class="item-row" data-week="' + ev.week + '" data-date="' + ev.date + '" data-id="' + escapeHtml(ev.id) + '">' +
+        '<li class="item-row" style="--event-color:' + cat.hex + '" data-week="' + ev.week + '" data-date="' + ev.date + '" data-id="' + escapeHtml(ev.id) + '">' +
           '<span class="item-badge" title="' + cat.name + '" style="background:' + cat.hex + '">' + cat.badge + "</span>" +
           '<div class="item-main">' +
             '<span class="item-title">' + escapeHtml(ev.title) + "</span><br>" +
-            '<span class="item-sub"><span class="event-date">' + dateLabel(ev.date) + ' </span>' + ev.start + "〜" + ev.end + "</span>" +
+            '<span class="item-sub"><span class="event-date">' + dateLabel(ev.date) + ' </span><span class="event-time">' + ev.start + "〜" + ev.end + '</span><span class="event-category-label">' + cat.name + '</span></span>' +
             (ev.memo ? '<details class="event-memo"><summary>メモを見る</summary><p>' + escapeHtml(ev.memo) + '</p></details>' : '') +
           "</div>" +
           '<span class="item-actions">' +
-            '<button type="button" class="js-edit-event" title="編集" aria-label="' + escapeHtml(ev.title) + 'を編集">✎</button>' +
-            '<button type="button" class="js-delete-event danger" title="削除" aria-label="' + escapeHtml(ev.title) + 'を削除">✕</button>' +
+            '<button type="button" class="js-edit-event" title="編集" aria-label="' + escapeHtml(ev.title) + 'を編集"><svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 4 5 5M4 20l4-1L20 7a2 2 0 0 0-3-3L5 16z"/></svg></button>' +
+            '<button type="button" class="js-delete-event danger" title="削除" aria-label="' + escapeHtml(ev.title) + 'を削除"><svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/></svg></button>' +
           "</span>" +
         "</li>"
       );
@@ -689,10 +700,10 @@
     }
     el.todoListUI.innerHTML = weekData.todos.map(function (t) {
       return (
-        '<li class="item-row' + (t.checked ? " is-checked" : "") + '" data-id="' + t.id + '">' +
-          '<input type="checkbox" class="js-toggle-todo" ' + (t.checked ? "checked" : "") + ">" +
+        '<li class="item-row' + (t.checked ? " is-checked" : "") + '" data-id="' + escapeHtml(t.id) + '">' +
+          '<label class="todo-check"><input type="checkbox" class="js-toggle-todo" aria-label="' + escapeHtml(t.text) + 'の完了状態" ' + (t.checked ? "checked" : "") + "></label>" +
           '<span class="item-main"><span class="item-title">' + escapeHtml(t.text) + "</span></span>" +
-          '<span class="item-actions"><button type="button" class="js-delete-todo danger" title="削除">✕</button></span>' +
+          '<span class="item-actions"><button type="button" class="js-delete-todo danger" title="削除" aria-label="TODOを削除"><svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7m4-7v7"/></svg></button></span>' +
         "</li>"
       );
     }).join("");
