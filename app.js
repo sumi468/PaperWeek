@@ -641,14 +641,15 @@
     var first = dates.parse(selected[0]);
     var last = dates.parse(selected[selected.length - 1]);
     var compact = (first.getMonth() + 1) + "月" + first.getDate() + "日";
-    if (view.mode === "custom") compact = "選択した" + selected.length + "日間";
+    if (view.mode === "custom" && selected.length > 1) compact = "選択した" + selected.length + "日間";
     else if (selected.length > 1) compact += " − " + (first.getFullYear() !== last.getFullYear() ? last.getFullYear() + "年" : "") +
       (first.getMonth() !== last.getMonth() || first.getFullYear() !== last.getFullYear() ? (last.getMonth() + 1) + "月" : "") + last.getDate() + "日";
     var mobileRange = document.getElementById("mobileWeekRange");
     mobileRange.setAttribute("aria-label", selectionLabel());
     mobileRange.innerHTML = '<strong>' + compact + '</strong><span>' + first.getFullYear() + "年・" + selected.length + '日間</span>';
-    el.prevWeekBtn.title = el.prevWeekBtn.ariaLabel = view.mode === "range" ? "前の期間" : "選択日を1週間前へ";
-    el.nextWeekBtn.title = el.nextWeekBtn.ariaLabel = view.mode === "range" ? "次の期間" : "選択日を1週間後へ";
+    var singleDay = visibleDates().length === 1;
+    el.prevWeekBtn.title = el.prevWeekBtn.ariaLabel = singleDay ? "前の日" : (view.mode === "range" ? "前の期間" : "選択日を1週間前へ");
+    el.nextWeekBtn.title = el.nextWeekBtn.ariaLabel = singleDay ? "次の日" : (view.mode === "range" ? "次の期間" : "選択日を1週間後へ");
     el.copyLastWeekBtn.title = settings.currentWeekStart + "の週へ先週の予定・TODOをコピー";
     el.orientationHint.textContent =
       settings.orientation === "portrait" ? "この状態でA4縦に印刷されます" : "この状態でA4横に印刷されます";
@@ -782,13 +783,24 @@
     changeView();
   });
 
+  var navigationPending = false;
   function moveView(direction) {
-    var amount = direction * (view.mode === "range" ? view.count : 7);
+    if (navigationPending) return;
+    var amount = direction * (view.mode === "range" ? view.count : (visibleDates().length === 1 ? 1 : 7));
     var moved = visibleDates().map(function (iso) { return dates.add(iso, amount); });
     if (!moved.every(dates.parse)) return;
+    navigationPending = true;
+    el.prevWeekBtn.disabled = el.nextWeekBtn.disabled = true;
     if (view.mode === "range") view.start = moved[0];
     else view.dates = moved;
-    changeView();
+    try {
+      changeView();
+    } finally {
+      setTimeout(function () {
+        navigationPending = false;
+        el.prevWeekBtn.disabled = el.nextWeekBtn.disabled = false;
+      }, 200);
+    }
   }
   el.dateModeSwitch.addEventListener("click", function (event) {
     var button = event.target.closest("[data-mode]");
