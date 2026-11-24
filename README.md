@@ -4,6 +4,19 @@
 フレームワークや本番用依存ライブラリの追加はありません。静的Webサーバーで
 `index.html` を配信します。Firebaseの設定は [README-firebase.md](README-firebase.md) を参照してください。
 
+## 外観と起動画面
+
+ヘッダーの月・太陽ボタンでライト／ダークを切り替えられます。
+「用紙・書式」→「外観」では「自動・ライト・ダーク」から選択できます。
+初期値の「自動」は端末の外観設定に追従し、明示的な選択は端末内の `wp_theme_v1` に保存します。
+同じブラウザの別タブにも反映します。予定・TODO・表示日付やFirebaseの設定とは別管理です。
+
+印刷プレビューの用紙は常に白で、テーマによって文字色・罫線・用紙寸法は変わりません。
+起動時にはPaperWeekのロゴを短く表示します。外部サービスの読み込みを待たずに終了し、
+動きを減らす端末設定では待ち時間と装飾アニメーションを省略します。
+タブ切り替え・日付移動・テーマ切り替えの動きを整え、印刷用紙自体は動かしません。
+`appearance.js` と `appearance.css` が外観のみを担当し、本番依存ライブラリの追加はありません。
+
 ## スマートフォンでの使い方
 
 画面幅760px以下では、印刷プレビューより先に日付ごとの予定一覧を表示します。
@@ -117,11 +130,13 @@ node --check app.js
 node --check dates.js
 node --check cloud-sync.js
 node --check mobile-ui.js
+node --check appearance.js
 node --test --test-isolation=none tests/dates.test.cjs tests/sync.test.cjs
 node --test tests/import.test.cjs tests/import-sync.test.cjs
 node tests/import-browser.cjs
 node tests/mobile-browser.cjs
 node tests/design-browser.cjs
+node tests/appearance-browser.cjs
 node tests/browser.cjs
 node tests/timeline.cjs
 python tests/check-pdfs.py

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>PaperWeek — かきこみ週間予定表</title>
 <meta name="theme-color" content="#3C5A6B">
+<script src="appearance.js"></script>
 <meta name="apple-mobile-web-app-title" content="PaperWeek">
 <link rel="icon" href="/favicon.ico?v=1" sizes="16x16 32x32 48x48">
 <link rel="icon" type="image/png" sizes="32x32" href="/icons/paperweek-32.png">
@@ -14,8 +15,23 @@
 <style id="pageSizeStyle">@page { size: A4 landscape; margin: 0; }</style>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="mobile.css">
+<link rel="stylesheet" href="appearance.css">
 </head>
 <body>
+
+<div id="appSplash" class="app-splash no-print" role="status" aria-label="PaperWeekを準備しています">
+  <div class="splash-content" aria-hidden="true">
+    <svg class="splash-symbol" viewBox="0 0 72 80" fill="none">
+      <rect class="splash-back-sheet" x="8" y="8" width="48" height="62" rx="8"/>
+      <path class="splash-front-sheet" d="M24 7h26l14 14v45a7 7 0 0 1-7 7H24a7 7 0 0 1-7-7V14a7 7 0 0 1 7-7Z"/>
+      <path class="splash-fold" d="M50 7v10a4 4 0 0 0 4 4h10"/>
+      <path class="splash-lines" d="M28 34h25M28 44h25M28 54h15"/>
+    </svg>
+    <div class="splash-wordmark">Paper<span>Week</span><i></i></div>
+    <p class="splash-tagline">日々を整え、紙へ。</p>
+    <div class="splash-progress"><span></span></div>
+  </div>
+</div>
 
 <div class="app">
 
@@ -33,13 +49,17 @@
     </div>
 
     <div class="topbar-right">
+      <button type="button" id="themeToggle" class="ghost-btn theme-toggle" aria-label="ダークモードに切り替える" aria-pressed="false" title="ダークモードに切り替える" hidden>
+        <svg class="theme-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 13.2A8.5 8.5 0 0 1 10.8 3.5 8.5 8.5 0 1 0 20.5 13.2Z"/></svg>
+        <svg class="theme-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"/></svg>
+      </button>
       <button id="copyLastWeekBtn" class="ghost-btn">先週の予定をコピー</button>
       <span class="save-status no-print" id="saveStatus" hidden></span>
       <button id="printBtn" class="primary-btn" aria-label="予定表を印刷"><svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4V9h16v8h-3"/><path d="M7 14h10v7H7zM17 11h.01"/></svg><span>印刷</span></button>
 
       <div class="topbar-auth" id="topbarAuth">
         <div class="auth-state auth-state-out" id="authStateOut">
-          <button id="openLoginBtn" class="ghost-btn">ログイン</button>
+          <button id="openLoginBtn" class="ghost-btn" aria-label="ログイン" title="ログイン"><svg class="button-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg><span>ログイン</span></button>
         </div>
         <div class="auth-state auth-state-in" id="authStateIn" hidden>
           <span class="auth-email" id="authEmailLabel"></span>
@@ -100,6 +120,16 @@
           </div>
           <div id="selectedDates" class="date-chips" aria-label="選択中の日付"></div>
           <p id="dateStatus" class="control-note" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="control-block" id="appearanceSettings" hidden>
+          <h2 class="control-title">外観</h2>
+          <div class="segmented" id="themeSwitch" role="group" aria-label="外観の選択">
+            <button type="button" class="segmented-btn" data-theme-choice="system">自動</button>
+            <button type="button" class="segmented-btn" data-theme-choice="light">ライト</button>
+            <button type="button" class="segmented-btn" data-theme-choice="dark">ダーク</button>
+          </div>
+          <p class="control-note">「自動」は端末の設定に合わせます。印刷プレビューと用紙は白のままです。</p>
         </div>
 
         <div class="control-block">
